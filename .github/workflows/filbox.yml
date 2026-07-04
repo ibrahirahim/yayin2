@@ -1,0 +1,101 @@
+name: filbox
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  yayin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+    - name: 📥 Depoyu klonla
+      uses: actions/checkout@v4
+
+    - name: 🐍 Python kurulumu
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: 📦 FFmpeg kurulumu
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: 🎬 Yayın scriptini oluştur
+      run: |
+        cat > yayin.py << 'EOF'
+        import subprocess
+        import time
+        import os
+
+        # ===================== SSH101.com AYARLARI =====================
+        RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
+        STREAM_KEY = "filbox1"
+        rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
+
+        # ===================== YAYIN AYARLARI =====================
+        PLAYLIST_FILE = "playlist.m3u"
+        LOGO_URL = "https://i.hizliresim.com/8dvubeu.png"
+
+        print("=" * 50)
+        print("📺 SSH101.com Kesintisiz Canlı Yayın")
+        print("=" * 50)
+
+        # Logo indirme
+        subprocess.run(["wget", "-O", "logo.png", LOGO_URL], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        video_index = 0
+
+        while True:
+            playlist = []
+            if os.path.exists(PLAYLIST_FILE):
+                with open(PLAYLIST_FILE, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("http"):
+                            playlist.append(line)
+
+            if len(playlist) == 0:
+                print("⚠️ playlist.m3u boş veya bulunamadı! 10 saniye sonra tekrar denenecek...")
+                time.sleep(10)
+                continue
+
+            if video_index >= len(playlist):
+                video_index = 0
+
+            video = playlist[video_index]
+            print(f"▶ [{video_index + 1}/{len(playlist)}] Yayınlanıyor: {video}")
+
+            # Logo sol üst köşede (overlay=20:20)
+            command = [
+                'ffmpeg', '-re', '-i', video, '-i', 'logo.png',
+                '-filter_complex', '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=200:-1[logo];[v0][logo]overlay=20:20[v]',
+                '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
+                '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
+                '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
+            ]
+
+            process = subprocess.Popen(command)
+            process.wait()
+
+            print("⏭ Video bitti. Liste yenileniyor ve sıradaki videoya geçiliyor...\n")
+            video_index = (video_index + 1) % len(playlist)
+            time.sleep(2)
+
+        EOF
+        echo "✅ Güncel M3U tanımlı Python scripti başarıyla oluşturuldu."
+
+    - name: 📄 Playlist kontrolü
+      run: |
+        if [ ! -f playlist.m3u ]; then
+          echo "❌ playlist.m3u bulunamadı! Boş bir tane oluşturuluyor..."
+          touch playlist.m3u
+        fi
+        echo "✅ playlist.m3u hazır."
+
+    - name: 🚀 Yayını başlat
+      run: |
+        python yayin.py
