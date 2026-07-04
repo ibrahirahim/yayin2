@@ -93,7 +93,7 @@ def start_stream():
             
             if os.path.exists('logo.png'):
                 logo_input = ['-i', 'logo.png']
-                filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=-1:-100[logo];[v0][logo]overlay=10:10[v]'
+                filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=110:-1logo];[v0][logo]overlay=10:10[v]'
             else:
                 logo_input = []
                 filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v]'
