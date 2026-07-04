@@ -41,7 +41,7 @@ jobs:
         LOGO_URL = "https://i.hizliresim.com/8dvubeu.png"
 
         print("=" * 50)
-        print("📺 SSH101.com Kesintisiz Canlı Yayın")
+        print(f"📺 SSH101.com Kesintisiz Canlı Yayın ({STREAM_KEY})")
         print("=" * 50)
 
         # Logo indirme
@@ -69,10 +69,10 @@ jobs:
             video = playlist[video_index]
             print(f"▶ [{video_index + 1}/{len(playlist)}] Yayınlanıyor: {video}")
 
-            # Logo sol üst köşede (overlay=20:20)
+            # Sol üst köşe, ideal logo boyutu (scale=100:-1) ve 20px boşluk
             command = [
                 'ffmpeg', '-re', '-i', video, '-i', 'logo.png',
-                '-filter_complex', '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=200:-1[logo];[v0][logo]overlay=20:20[v]',
+                '-filter_complex', '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=100:-1[logo];[v0][logo]overlay=20:20[v]',
                 '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
                 '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
                 '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
@@ -86,7 +86,7 @@ jobs:
             time.sleep(2)
 
         EOF
-        echo "✅ Güncel M3U tanımlı Python scripti başarıyla oluşturuldu."
+        echo "✅ Filbox1 yayın anahtarlı script oluşturuldu."
 
     - name: 📄 Playlist kontrolü
       run: |
