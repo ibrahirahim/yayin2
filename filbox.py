@@ -18,11 +18,11 @@ class Colors:
 def print_colored(color, text):
     print(f"{color}{text}{Colors.NC}")
 
+# Filbox1 ayarı yapıldı
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "filbox1"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U kaynağınız ve sol üst logo URL'niz tanımlandı
 M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
 LOGO_URL = "https://i.hizliresim.com/8dvubeu.png"
 
@@ -91,10 +91,9 @@ def start_stream():
             video_url = playlist[video_index]
             print_colored(Colors.GREEN, f"▶ [{video_index+1}/{len(playlist)}] Yayınlanıyor: {video_url}")
             
-            # Logo sol üst köşe (overlay=20:20)
             if os.path.exists('logo.png'):
                 logo_input = ['-i', 'logo.png']
-                filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=200:-1[logo];[v0][logo]overlay=20:20[v]'
+                filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=100:-1[logo];[v0][logo]overlay=20:20[v]'
             else:
                 logo_input = []
                 filter_str = '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v]'
