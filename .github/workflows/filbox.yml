@@ -72,7 +72,7 @@ jobs:
             # Sol üst köşe, ideal logo boyutu (scale=100:-1) ve 20px boşluk
             command = [
                 'ffmpeg', '-re', '-i', video, '-i', 'logo.png',
-                '-filter_complex', '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=-1:100[logo];[v0][logo]overlay=10:10[v]',
+                '-filter_complex', '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=110:-1logo];[v0][logo]overlay=10:10[v]',
                 '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
                 '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
                 '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
