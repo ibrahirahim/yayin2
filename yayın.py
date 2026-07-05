@@ -21,7 +21,7 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "fil2"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
-M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin/refs/heads/main/playlist.m3u"
+M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
 LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
