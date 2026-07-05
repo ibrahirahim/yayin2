@@ -129,7 +129,6 @@ def start_stream():
                     f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
                     'fontcolor=white:fontsize=22:'
-                    'box=1:boxcolor=black@0.6:boxborderw=8:'
                     'x=20:y=h-text_h-20[v]'
                 )
             else:
@@ -140,7 +139,6 @@ def start_stream():
                     f'[v0]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
                     'fontcolor=white:fontsize=22:'
-                    'box=1:boxcolor=black@0.6:boxborderw=8:'
                     'x=20:y=h-text_h-20[v]'
                 )
 
