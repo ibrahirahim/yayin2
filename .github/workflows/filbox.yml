@@ -38,7 +38,7 @@ jobs:
 
         # ===================== YAYIN AYARLARI =====================
         PLAYLIST_FILE = "playlist.m3u"
-        LOGO_URL = "https://i.hizliresim.com/8dvubeu.png"
+        LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
 
         print("=" * 50)
         print("📺 SSH101.com Kesintisiz Canlı Yayın")
