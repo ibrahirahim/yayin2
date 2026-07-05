@@ -19,7 +19,7 @@ def print_colored(color, text):
     print(f"{color}{text}{Colors.NC}")
 
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "tvgo2"
+STREAM_KEY = "filmbox1"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni logonuz buraya eklendi
