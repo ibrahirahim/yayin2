@@ -128,7 +128,7 @@ def start_stream():
                     '[v0][logo]overlay=W-w-10:10[vlogo];'
                     f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=22:'
+                    'fontcolor=white:fontsize=:'
                     'x=20:y=h-text_h-20[v]'
                 )
             else:
@@ -138,8 +138,8 @@ def start_stream():
                     'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
                     f'[v0]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=22:'
-                    'x=20:y=h-text_h-20[v]'
+                    'fontcolor=white:fontsize=18:'
+                    'x=23:y=h-text_h-20[v]'
                 )
 
             command = [
