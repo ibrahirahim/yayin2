@@ -1,38 +1,32 @@
 name: SSH101.com Yayın
-
 on:
   push:
     branches: [ main ]
     paths-ignore:
       - 'playlist.m3u'
   workflow_dispatch:
-
 jobs:
   yayin:
     runs-on: ubuntu-latest
     timeout-minutes: 360
-
     steps:
     - name: 📥 Depoyu klonla
       uses: actions/checkout@v4
-
     - name: 🐍 Python kurulumu
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-
-    - name: 📦 FFmpeg kurulumu
+    - name: 📦 FFmpeg ve font kurulumu
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg fonts-dejavu-core
-
     - name: 🎬 Yayın scriptini oluştur
       run: |
         cat > yayin.py << 'EOF'
         import subprocess
-        import threading
         import time
         import os
+        import urllib.request
 
         # ===================== SSH101.com AYARLARI =====================
         RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
@@ -40,184 +34,118 @@ jobs:
         rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
         # ===================== YAYIN AYARLARI =====================
+        M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin/refs/heads/main/playlist.m3u"
         PLAYLIST_FILE = "playlist.m3u"
-        LOGO_URL = "https://i.hizliresim.com/74c1k5c.png"
+        LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
         FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
-        # Playlist dosyasının kaç saniyede bir yeniden okunacağı
-        PLAYLIST_REFRESH_INTERVAL = 60
-
         print("=" * 50)
-        print("📺 SSH101.com Yayın Başlatılıyor")
-        print("=" * 50)
-        print(f"🎨 Logo: {LOGO_URL}")
-        print(f"🔑 Stream Key: {STREAM_KEY}")
-        print(f"📡 RTMP: {rtmp_server}")
+        print("📺 SSH101.com Kesintisiz Canlı Yayın")
         print("=" * 50)
 
-        # Logo'yu indir
-        subprocess.run(["wget", "-O", "logo.png", LOGO_URL])
-
-        # ===================== PAYLAŞILAN DURUM =====================
-        playlist_lock = threading.Lock()
-        current_playlist = []  # [{"title": "...", "url": "..."}, ...]
-        son_oynatilan_url = None
+        # Logo indirme
+        subprocess.run(["wget", "-O", "logo.png", LOGO_URL], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-        def playlist_oku(dosya_yolu):
+        def m3u_listesini_getir():
             """
-            M3U dosyasını okur. #EXTINF satırındaki film adını bir sonraki
-            http linkiyle eşleştirip {"title": ..., "url": ...} sözlükleri
-            şeklinde liste döner.
+            Önce M3U_SOURCE'tan (GitHub raw) canlı olarak çekmeyi dener.
+            Başarısız olursa yerel playlist.m3u dosyasını okur.
+            #EXTINF satırındaki film adını linkle eşleştirip
+            {"title","url"} sözlükleri listesi döner.
             """
+            icerik = None
+            try:
+                with urllib.request.urlopen(M3U_SOURCE, timeout=15) as resp:
+                    icerik = resp.read().decode('utf-8', errors='ignore')
+            except Exception as e:
+                print(f"⚠️ M3U web'den çekilemedi ({e}), yerel dosya deneniyor...")
+
+            if icerik is None:
+                if not os.path.exists(PLAYLIST_FILE):
+                    return []
+                with open(PLAYLIST_FILE, "r", encoding="utf-8") as f:
+                    icerik = f.read()
+
             liste = []
             baslik = None
-            try:
-                with open(dosya_yolu, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line.startswith("#EXTINF"):
-                            if ',' in line:
-                                baslik = line.split(',', 1)[1].strip()
-                            else:
-                                baslik = None
-                        elif line.startswith("http"):
-                            if not baslik:
-                                baslik = os.path.basename(line.split('?')[0]) or "Bilinmeyen Film"
-                            liste.append({"title": baslik, "url": line})
-                            baslik = None
-            except Exception as e:
-                print(f"❌ Playlist okuma hatası: {e}")
+            for satir in icerik.split('\n'):
+                satir = satir.strip()
+                if satir.startswith('#EXTINF'):
+                    if ',' in satir:
+                        baslik = satir.split(',', 1)[1].strip()
+                    else:
+                        baslik = None
+                elif satir.startswith('http'):
+                    if not baslik:
+                        baslik = os.path.basename(satir.split('?')[0]) or "Bilinmeyen Film"
+                    liste.append({"title": baslik, "url": satir})
+                    baslik = None
             return liste
 
 
-        def playlist_guncelleyici(dosya_yolu, interval=PLAYLIST_REFRESH_INTERVAL):
-            global current_playlist
-            while True:
-                time.sleep(interval)
-                try:
-                    yeni_liste = playlist_oku(dosya_yolu)
-                    if len(yeni_liste) > 0:
-                        with playlist_lock:
-                            if yeni_liste != current_playlist:
-                                current_playlist = yeni_liste
-                                print(f"🔄 Playlist güncellendi! Yeni film sayısı: {len(yeni_liste)}")
-                except Exception as e:
-                    print(f"❌ Playlist güncelleme hatası: {e}")
+        son_oynatilan_url = None
 
-
-        def siradaki_videoyu_sec(liste):
-            global son_oynatilan_url
-            urls = [item["url"] for item in liste]
-            if son_oynatilan_url is None or son_oynatilan_url not in urls:
-                return liste[0]
-            idx = urls.index(son_oynatilan_url)
-            return liste[(idx + 1) % len(liste)]
-
-
-        # İlk playlist yüklemesi
-        current_playlist = playlist_oku(PLAYLIST_FILE)
-
-        if len(current_playlist) == 0:
-            raise Exception("playlist.m3u içinde video bulunamadı")
-
-        # Güncelleyici thread'i başlat
-        guncelleme_thread = threading.Thread(
-            target=playlist_guncelleyici,
-            args=(PLAYLIST_FILE, PLAYLIST_REFRESH_INTERVAL),
-            daemon=True
-        )
-        guncelleme_thread.start()
-
-        # ===================== YAYIN DÖNGÜSÜ =====================
         while True:
-            with playlist_lock:
-                liste = current_playlist.copy()
+            playlist = m3u_listesini_getir()
 
-            if len(liste) == 0:
-                print("⚠️ Playlist boş, 5 saniye sonra tekrar denenecek...")
-                time.sleep(5)
+            if len(playlist) == 0:
+                print("⚠️ Liste boş veya bulunamadı! 10 saniye sonra tekrar denenecek...")
+                time.sleep(10)
                 continue
 
-            secilen = siradaki_videoyu_sec(liste)
+            urls = [item["url"] for item in playlist]
+            if son_oynatilan_url is None or son_oynatilan_url not in urls:
+                secilen = playlist[0]
+            else:
+                idx = urls.index(son_oynatilan_url)
+                secilen = playlist[(idx + 1) % len(playlist)]
+
             video = secilen["url"]
             baslik = secilen["title"]
             son_oynatilan_url = video
 
+            # Film adını dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
                     f.write(baslik)
-            except Exception as e:
-                print(f"❌ Başlık dosyası yazma hatası: {e}")
+            except Exception:
+                pass
 
             print(f"▶ Yayınlanıyor: {baslik}")
             print(f"   Kaynak: {video}")
 
             command = [
-                'ffmpeg',
-                '-re',
-                '-i', video,
-                '-i', 'logo.png',
+                'ffmpeg', '-re', '-i', video, '-i', 'logo.png',
                 '-filter_complex',
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                 'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                '[1:v]scale=200:-1[logo];'
-                '[v0][logo]overlay=W-w-9:3[vlogo];'
+                '[1:v]scale=-1:90[logo];'
+                '[v0][logo]overlay=W-w-10:10[vlogo];'
                 f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                 'textfile=title.txt:reload=1:'
                 'fontcolor=white:fontsize=22:'
                 'box=1:boxcolor=black@0.6:boxborderw=8:'
                 'x=20:y=h-text_h-20[v]',
-                '-map', '[v]',
-                '-map', '0:a?',
-                '-c:v', 'libx264',
-                '-preset', 'veryfast',
-                '-pix_fmt', 'yuv420p',
-                '-b:v', '4000k',
-                '-maxrate', '4000k',
-                '-bufsize', '8000k',
-                '-g', '50',
-                '-c:a', 'aac',
-                '-b:a', '128k',
-                '-ar', '44100',
-                '-f', 'flv',
-                rtmp_server
+                '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
+                '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
+                '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
             ]
 
             process = subprocess.Popen(command)
             process.wait()
 
-            print("⏭ Video bitti, sıradaki videoya geçiliyor...\n")
-
+            print("⏭ Video bitti. Liste yenileniyor ve sıradaki videoya geçiliyor...\n")
+            time.sleep(2)
         EOF
-
-        echo "✅ Python scripti oluşturuldu"
-
+        echo "✅ Film adı gösteren, canlı güncellemeli Python scripti oluşturuldu."
     - name: 📄 Playlist kontrolü
       run: |
         if [ ! -f playlist.m3u ]; then
-          echo "❌ playlist.m3u bulunamadı!"
-          exit 1
+          echo "❌ playlist.m3u bulunamadı! Boş bir tane oluşturuluyor..."
+          touch playlist.m3u
         fi
-
-        echo "✅ playlist.m3u bulundu"
-        echo "📋 İçeriği:"
-        cat playlist.m3u
-
-    - name: 🔄 Playlist senkronizasyonu (arka plan)
-      run: |
-        (
-          while true; do
-            sleep 60
-            git fetch origin main
-            git checkout origin/main -- playlist.m3u
-          done
-        ) &
-        echo "✅ Senkronizasyon arka planda başlatıldı"
-
+        echo "✅ playlist.m3u hazır."
     - name: 🚀 Yayını başlat
       run: |
-        echo "========================================"
-        echo "🎬 SSH101.com Yayını Başlatılıyor"
-        echo "========================================"
         python yayin.py
