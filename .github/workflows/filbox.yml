@@ -70,7 +70,7 @@ jobs:
             print(f"▶ [{video_index + 1}/{len(playlist)}] Yayınlanıyor: {video}")
 
             # Filtre dizesi tırnak karmaşasını önlemek için sadeleştirildi
-            filter_str = "[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=80:-1[logo];[v0][logo]overlay=10:10[v]"
+            filter_str = "[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];[1:v]scale=-1:90[logo];[v0][logo]overlay=10:10[v]"
 
             command = [
                 'ffmpeg', '-re', '-i', video, '-i', 'logo.png',
