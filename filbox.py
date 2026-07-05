@@ -24,7 +24,7 @@ rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni logonuz buraya eklendi
 M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin/refs/heads/main/playlist.m3u"
-LOGO_URL = "https://i.hizliresim.com/8dvubeu.png"
+LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
 
 def is_termux():
     return 'TERMUX_VERSION' in os.environ or '/data/data/com.termux' in os.environ
