@@ -20,170 +20,29 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg fonts-dejavu-core
+        ffmpeg -version
     - name: 🎬 Yayın scriptini oluştur
       run: |
         cat > yayin.py << 'EOF'
-        import subprocess
-        import time
-        import os
-        import urllib.request
-
-        # ===================== SSH101.com AYARLARI =====================
-        RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-        STREAM_KEY = "filmbox1"
-        rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
-
-        # ===================== YAYIN AYARLARI =====================
-        M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
-        PLAYLIST_FILE = "playlist.m3u"
-        LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
-        FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-
-        print("=" * 50)
-        print("📺 SSH101.com Kesintisiz Canlı Yayın")
-        print("=" * 50)
-
-        # Logo indirme
-        subprocess.run(["wget", "-O", "logo.png", LOGO_URL], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-        def m3u_listesini_getir():
-            """
-            Önce M3U_SOURCE'tan (GitHub raw) canlı olarak çekmeyi dener.
-            Başarısız olursa yerel playlist.m3u dosyasını okur.
-            """
-            icerik = None
-            try:
-                cache_buster = f"?t={int(time.time())}"
-                req = urllib.request.Request(
-                    M3U_SOURCE + cache_buster,
-                    headers={"Cache-Control": "no-cache", "Pragma": "no-cache"}
-                )
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    icerik = resp.read().decode('utf-8', errors='ignore')
-            except Exception as e:
-                print(f"⚠️ M3U web'den çekilemedi ({e}), yerel dosya deneniyor...")
-
-            if icerik is None:
-                if not os.path.exists(PLAYLIST_FILE):
-                    return []
-                with open(PLAYLIST_FILE, "r", encoding="utf-8") as f:
-                    icerik = f.read()
-
-            liste = []
-            baslik = None
-            for satir in icerik.split('\n'):
-                satir = satir.strip()
-                if satir.startswith('#EXTINF'):
-                    if ',' in satir:
-                        baslik = satir.split(',', 1)[1].strip()
-                    else:
-                        baslik = None
-                elif satir.startswith('http'):
-                    if not baslik:
-                        baslik = os.path.basename(satir.split('?')[0]) or "Bilinmeyen Film"
-                    liste.append({"title": baslik, "url": satir})
-                    baslik = None
-            return liste
-
-
-        def get_video_duration(video_url):
-            """
-            Video dosyasının süresini saniye cinsinden alır.
-            """
-            try:
-                cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
-                       '-of', 'default=noprint_wrappers=1:nokey=1', video_url]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-                if result.returncode == 0 and result.stdout.strip():
-                    return float(result.stdout.strip())
-            except Exception:
-                pass
-            return None
-
-
-        video_sayaci = 0
-        onceki_liste_imzasi = None
-
-        while True:
-            playlist = m3u_listesini_getir()
-
-            if len(playlist) == 0:
-                print("⚠️ Liste boş veya bulunamadı! 10 saniye sonra tekrar denenecek...")
-                time.sleep(10)
-                continue
-
-            guncel_imza = tuple(item["url"] for item in playlist)
-
-            if onceki_liste_imzasi is not None and guncel_imza != onceki_liste_imzasi:
-                print("🔄 Playlist değişikliği tespit edildi, baştan başlanıyor...")
-                video_sayaci = 0
-
-            onceki_liste_imzasi = guncel_imza
-
-            secilen_idx = video_sayaci % len(playlist)
-            secilen = playlist[secilen_idx]
-
-            video = secilen["url"]
-            baslik = secilen["title"]
-            video_sayaci += 1
-
-            # Film süresini al
-            duration = get_video_duration(video)
-            duration_text = ""
-            if duration:
-                minutes = int(duration // 60)
-                seconds = int(duration % 60)
-                duration_text = f"Toplam: {minutes:02d}:{seconds:02d}"
-            else:
-                duration_text = "Süre: Bilinmiyor"
-
-            # Şu an oynayan filmi ve süresini dosyaya yaz
-            try:
-                with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(f"{baslik}\n{duration_text}")
-            except Exception:
-                pass
-
-            print(f"▶ Yayınlanıyor: {baslik}")
-            if duration:
-                print(f"   Süre: {duration_text}")
-            print(f"   Kaynak: {video}")
-
-            command = [
-                'ffmpeg', '-re', '-i', video, '-i', 'logo.png',
-                '-filter_complex',
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                '[1:v]scale=-1:90[logo];'
-                '[v0][logo]overlay=W-w-10:10[vlogo];'
-                f'[vlogo]drawtext=fontfile={FONT_PATH}:'
-                'textfile=title.txt:reload=1:'
-                'fontcolor=white:fontsize=18:line_spacing=6:'
-                'x=20:y=h-text_h-20,'
-                'drawtext=fontfile={FONT_PATH}:'
-                'text=%{{pts\\:hms}}:'
-                'fontcolor=yellow:fontsize=18:'
-                'x=20:y=h-text_h-50[v]',
-                '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
-                '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
-                '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
-            ]
-
-            process = subprocess.Popen(command)
-            process.wait()
-
-            print("⏭ Video bitti. Liste yenileniyor ve sıradaki videoya geçiliyor...\n")
-            time.sleep(2)
+        # Buraya yukarıdaki Python kodunu kopyala
         EOF
-        echo "✅ Cache-busting'li, film adı ve kalan süre gösteren Python scripti oluşturuldu."
+        chmod +x yayin.py
     - name: 📄 Playlist kontrolü
       run: |
         if [ ! -f playlist.m3u ]; then
-          echo "❌ playlist.m3u bulunamadı! Boş bir tane oluşturuluyor..."
-          touch playlist.m3u
+          echo "⚠️ playlist.m3u bulunamadı!"
+          # Örnek bir playlist oluştur
+          cat > playlist.m3u << 'EOL'
+        #EXTM3U
+        #EXTINF:-1,Test Filmi 1
+        https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4
+        #EXTINF:-1,Test Filmi 2
+        https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4
+        EOL
         fi
-        echo "✅ playlist.m3u hazır."
+        echo "✅ playlist.m3u içeriği:"
+        cat playlist.m3u
     - name: 🚀 Yayını başlat
       run: |
-        python yayin.py
+        python -u yayin.py
+      continue-on-error: false
