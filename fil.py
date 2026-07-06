@@ -120,17 +120,15 @@ def start_stream():
 
             secilen_idx = video_sayaci % len(playlist)
             secilen = playlist[secilen_idx]
-            sonraki = playlist[(secilen_idx + 1) % len(playlist)]
 
             video_url = secilen["url"]
             baslik = secilen["title"]
-            sonraki_baslik = sonraki["title"]
             video_sayaci += 1
 
-            # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
+            # Sadece şu an oynayan filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(f"Şimdi: {baslik}\nSırada: {sonraki_baslik}")
+                    f.write(baslik)
             except Exception:
                 pass
 
@@ -156,8 +154,8 @@ def start_stream():
                     'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
                     f'[v0]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=18:line_spacing=6:'
-                    'x=20:y=h-text_h-20[v]'
+                    'fontcolor=white:fontsize=16:line_spacing=6:'
+                    'x=22:y=h-text_h-20[v]'
                 )
 
             command = [
