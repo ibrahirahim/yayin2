@@ -115,17 +115,15 @@ jobs:
 
             secilen_idx = video_sayaci % len(playlist)
             secilen = playlist[secilen_idx]
-            sonraki = playlist[(secilen_idx + 1) % len(playlist)]
 
             video = secilen["url"]
             baslik = secilen["title"]
-            sonraki_baslik = sonraki["title"]
             video_sayaci += 1
 
-            # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
+            # Sadece şu an oynayan filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(f"Şimdi: {baslik}\nSırada: {sonraki_baslik}")
+                    f.write(baslik)
             except Exception:
                 pass
 
@@ -141,8 +139,8 @@ jobs:
                 '[v0][logo]overlay=W-w-10:10[vlogo];'
                 f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                 'textfile=title.txt:reload=1:'
-                'fontcolor=white:fontsize=18:line_spacing=6:'
-                'x=20:y=h-text_h-20[v]',
+                'fontcolor=white:fontsize=16:line_spacing=6:'
+                'x=22:y=h-text_h-20[v]',
                 '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
                 '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
                 '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
