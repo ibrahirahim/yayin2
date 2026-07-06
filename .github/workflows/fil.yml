@@ -92,6 +92,7 @@ jobs:
 
 
         video_sayaci = 0
+        onceki_liste_imzasi = None
 
         while True:
             playlist = m3u_listesini_getir()
@@ -101,9 +102,17 @@ jobs:
                 time.sleep(10)
                 continue
 
-            # Her zaman güncel listenin (dosyadaki) sırasına göre oynat.
-            # video_sayaci hiç sıfırlanmaz, sürekli artar; bu sayede liste
-            # her yeniden çekildiğinde o anki sıraya göre doğru video seçilir.
+            # Listenin (sıra dahil) aynı kalıp kalmadığını kontrol et.
+            guncel_imza = tuple(item["url"] for item in playlist)
+
+            if onceki_liste_imzasi is not None and guncel_imza != onceki_liste_imzasi:
+                # Liste değişmiş (sıra değişmiş, film eklenmiş/çıkarılmış vs.)
+                # -> bir sonraki video listenin EN BAŞINDAN oynatılacak.
+                print("🔄 Playlist değişikliği tespit edildi, baştan başlanıyor...")
+                video_sayaci = 0
+
+            onceki_liste_imzasi = guncel_imza
+
             secilen_idx = video_sayaci % len(playlist)
             secilen = playlist[secilen_idx]
             sonraki = playlist[(secilen_idx + 1) % len(playlist)]
