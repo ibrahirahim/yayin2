@@ -191,8 +191,8 @@ def start_stream():
                     '[v0][logo]overlay=W-w-10:10[vlogo];'
                     f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=18:line_spacing=6:'
-                    'x=20:y=h-text_h-20[v]'
+                    'fontcolor=white:fontsize=16:line_spacing=6:'
+                    'x=23:y=h-text_h-20[v]'
                 )
             else:
                 logo_input = []
