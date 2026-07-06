@@ -1,4 +1,4 @@
-name: SSH101.com Yayın
+name: filbox
 on:
   push:
     branches: [ main ]
