@@ -1,4 +1,4 @@
-name: SSH101.com Yayın
+name: filbox
 on:
   push:
     branches: [ main ]
@@ -51,12 +51,19 @@ jobs:
             """
             Önce M3U_SOURCE'tan (GitHub raw) canlı olarak çekmeyi dener.
             Başarısız olursa yerel playlist.m3u dosyasını okur.
-            #EXTINF satırındaki film adını linkle eşleştirip
-            {"title","url"} sözlükleri listesi döner.
+
+            ÖNEMLİ: raw.githubusercontent.com birkaç dakikalık CDN
+            önbelleği kullanır. Bunu aşmak için URL'e her seferinde
+            değişen bir cache-busting parametresi (?t=...) ekliyoruz.
             """
             icerik = None
             try:
-                with urllib.request.urlopen(M3U_SOURCE, timeout=15) as resp:
+                cache_buster = f"?t={int(time.time())}"
+                req = urllib.request.Request(
+                    M3U_SOURCE + cache_buster,
+                    headers={"Cache-Control": "no-cache", "Pragma": "no-cache"}
+                )
+                with urllib.request.urlopen(req, timeout=15) as resp:
                     icerik = resp.read().decode('utf-8', errors='ignore')
             except Exception as e:
                 print(f"⚠️ M3U web'den çekilemedi ({e}), yerel dosya deneniyor...")
@@ -96,19 +103,23 @@ jobs:
 
             urls = [item["url"] for item in playlist]
             if son_oynatilan_url is None or son_oynatilan_url not in urls:
-                secilen = playlist[0]
+                secilen_idx = 0
             else:
                 idx = urls.index(son_oynatilan_url)
-                secilen = playlist[(idx + 1) % len(playlist)]
+                secilen_idx = (idx + 1) % len(playlist)
+
+            secilen = playlist[secilen_idx]
+            sonraki = playlist[(secilen_idx + 1) % len(playlist)]
 
             video = secilen["url"]
             baslik = secilen["title"]
+            sonraki_baslik = sonraki["title"]
             son_oynatilan_url = video
 
-            # Film adını dosyaya yaz, ffmpeg drawtext bunu okuyacak
+            # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(baslik)
+                    f.write(f"Şimdi: {baslik}\nSırada: {sonraki_baslik}")
             except Exception:
                 pass
 
@@ -124,8 +135,8 @@ jobs:
                 '[v0][logo]overlay=W-w-10:10[vlogo];'
                 f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                 'textfile=title.txt:reload=1:'
-                'fontcolor=white:fontsize=18:'
-                'x=23:y=h-text_h-20[v]',
+                'fontcolor=white:fontsize=18:line_spacing=6:'
+                'x=20:y=h-text_h-20[v]',
                 '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
                 '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
                 '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
@@ -137,7 +148,7 @@ jobs:
             print("⏭ Video bitti. Liste yenileniyor ve sıradaki videoya geçiliyor...\n")
             time.sleep(2)
         EOF
-        echo "✅ Film adı gösteren, canlı güncellemeli Python scripti oluşturuldu."
+        echo "✅ Cache-busting'li, film adı gösteren Python scripti oluşturuldu."
     - name: 📄 Playlist kontrolü
       run: |
         if [ ! -f playlist.m3u ]; then
