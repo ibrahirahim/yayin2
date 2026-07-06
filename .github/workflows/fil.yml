@@ -30,7 +30,7 @@ jobs:
 
         # ===================== SSH101.com AYARLARI =====================
         RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-        STREAM_KEY = "fil2"
+        STREAM_KEY = "fill2"
         rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
         # ===================== YAYIN AYARLARI =====================
