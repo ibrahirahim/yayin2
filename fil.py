@@ -18,7 +18,7 @@ def print_colored(color, text):
     print(f"{color}{text}{Colors.NC}")
 
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "fil2"
+STREAM_KEY = "fill2"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
 M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
