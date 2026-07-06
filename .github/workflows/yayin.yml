@@ -28,12 +28,10 @@ jobs:
         import os
         import urllib.request
 
-        # ===================== SSH101.com AYARLARI =====================
         RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
         STREAM_KEY = "fil2"
         rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
-        # ===================== YAYIN AYARLARI =====================
         M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
         PLAYLIST_FILE = "playlist.m3u"
         LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
@@ -43,19 +41,9 @@ jobs:
         print("📺 SSH101.com Kesintisiz Canlı Yayın")
         print("=" * 50)
 
-        # Logo indirme
         subprocess.run(["wget", "-O", "logo.png", LOGO_URL], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-
         def m3u_listesini_getir():
-            """
-            Önce M3U_SOURCE'tan (GitHub raw) canlı olarak çekmeyi dener.
-            Başarısız olursa yerel playlist.m3u dosyasını okur.
-
-            ÖNEMLİ: raw.githubusercontent.com birkaç dakikalık CDN
-            önbelleği kullanır. Bunu aşmak için URL'e her seferinde
-            değişen bir cache-busting parametresi (?t=...) ekliyoruz.
-            """
             icerik = None
             try:
                 cache_buster = f"?t={int(time.time())}"
@@ -90,8 +78,8 @@ jobs:
                     baslik = None
             return liste
 
-
-        video_sayaci = 0
+        # Sıra sayacı döngünün Dışında tanımlandı
+        stream_index = 0
 
         while True:
             playlist = m3u_listesini_getir()
@@ -101,26 +89,24 @@ jobs:
                 time.sleep(10)
                 continue
 
-            # Her zaman güncel listenin (dosyadaki) sırasına göre oynat.
-            # video_sayaci hiç sıfırlanmaz, sürekli artar; bu sayede liste
-            # her yeniden çekildiğinde o anki sıraya göre doğru video seçilir.
-            secilen_idx = video_sayaci % len(playlist)
-            secilen = playlist[secilen_idx]
-            sonraki = playlist[(secilen_idx + 1) % len(playlist)]
+            # Liste güncellenip kısaldıysa hata vermemesi için koruma
+            if stream_index >= len(playlist):
+                stream_index = 0
+
+            secilen = playlist[stream_index]
+            sonraki = playlist[(stream_index + 1) % len(playlist)]
 
             video = secilen["url"]
             baslik = secilen["title"]
             sonraki_baslik = sonraki["title"]
-            video_sayaci += 1
 
-            # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(f"Şimdi: {baslik}\nSırada: {sonraki_baslik}")
+                    f.write(f"Simdi: {baslik}\nSirada: {sonraki_baslik}")
             except Exception:
                 pass
 
-            print(f"▶ Yayınlanıyor: {baslik}")
+            print(f"▶ Yayinlaniyor [{stream_index + 1}/{len(playlist)}]: {baslik}")
             print(f"   Kaynak: {video}")
 
             command = [
@@ -142,10 +128,12 @@ jobs:
             process = subprocess.Popen(command)
             process.wait()
 
-            print("⏭ Video bitti. Liste yenileniyor ve sıradaki videoya geçiliyor...\n")
+            # Video bittiğinde sırayı bir artırıyoruz
+            stream_index = (stream_index + 1) % len(playlist)
+            print("⏭ Video bitti. Liste yenileniyor ve siradaki videoya geciliyor...\n")
             time.sleep(2)
         EOF
-        echo "✅ Cache-busting'li, film adı gösteren Python scripti oluşturuldu."
+        echo "✅ Sıra korumalı, yeni nesil Python scripti oluşturuldu."
     - name: 📄 Playlist kontrolü
       run: |
         if [ ! -f playlist.m3u ]; then
