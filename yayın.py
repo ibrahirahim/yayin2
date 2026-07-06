@@ -8,20 +8,23 @@ import os
 import requests
 
 class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
+    RED = '\033;31m'
+    GREEN = '\033;32m'
+    YELLOW = '\033;33m'
+    BLUE = '\033;34m'
     NC = '\033[0m'
 
 def print_colored(color, text):
     print(f"{color}{text}{Colors.NC}")
 
+# ===================== SSH101.com AYARLARI =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "fil2"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
+# ===================== YAYIN AYARLARI =====================
 M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
+PLAYLIST_FILE = "playlist.m3u"
 LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
@@ -40,15 +43,6 @@ def check_dependencies():
             subprocess.run(["pkg", "install", "-y", "ffmpeg"], check=True)
 
 def m3u_dan_listeyi_cek(m3u_url):
-    """
-    M3U dosyasını indirir/okur. #EXTINF satırındaki film adını
-    bir sonraki http linkiyle eşleştirip {"title","url"} listesi döner.
-
-    ÖNEMLİ: raw.githubusercontent.com birkaç dakikalık CDN önbelleği
-    kullanır. Bunu aşmak için URL'e her seferinde değişen bir
-    "cache-busting" parametresi (?t=...) ekliyoruz, böylece GitHub'ın
-    önbellekten değil her zaman güncel dosyayı vermesi sağlanıyor.
-    """
     try:
         if m3u_url.startswith('http'):
             cache_buster = f"?t={int(time.time())}"
@@ -93,41 +87,46 @@ def download_logo():
         return False
 
 def start_stream():
-    video_sayaci = 0
+    # Sıra sayacı döngünün dışında başlar, böylece liste güncellense de sırasını kaybetmez
+    stream_index = 0
+
+    print("=" * 50)
+    print("📺 SSH101.com Kesintisiz Canlı Yayın Başlatıldı")
+    print("=" * 50)
 
     while True:
         try:
             playlist = m3u_dan_listeyi_cek(M3U_SOURCE)
-            if len(playlist) == 0 and os.path.exists('playlist.m3u'):
-                playlist = m3u_dan_listeyi_cek('playlist.m3u')
+            if len(playlist) == 0 and os.path.exists(PLAYLIST_FILE):
+                playlist = m3u_dan_listeyi_cek(PLAYLIST_FILE)
 
             if len(playlist) == 0:
                 print_colored(Colors.RED, "⚠️ Liste boş. 10 saniye sonra tekrar denenecek...")
                 time.sleep(10)
                 continue
 
-            # Her zaman güncel listenin (dosyadaki) sırasına göre oynat.
-            # video_sayaci hiç sıfırlanmaz, sürekli artar; bu sayede liste
-            # her yeniden çekildiğinde o anki sıraya göre doğru video seçilir.
-            secilen_idx = video_sayaci % len(playlist)
-            secilen = playlist[secilen_idx]
-            sonraki = playlist[(secilen_idx + 1) % len(playlist)]
+            # Eğer liste güncellenirken küçüldüyse ve sayaç liste dışı kaldıysa başa sar
+            if stream_index >= len(playlist):
+                stream_index = 0
+
+            secilen = playlist[stream_index]
+            sonraki = playlist[(stream_index + 1) % len(playlist)]
 
             video_url = secilen["url"]
             baslik = secilen["title"]
             sonraki_baslik = sonraki["title"]
-            video_sayaci += 1
 
-            # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
+            # Ekrana yazdırılacak başlık dosyası oluşturuluyor
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(f"Şimdi: {baslik}\nSırada: {sonraki_baslik}")
+                    f.write(f"Simdi: {baslik}\nSirada: {sonraki_baslik}")
             except Exception:
                 pass
 
-            print_colored(Colors.GREEN, f"▶ Yayınlanıyor: {baslik}")
+            print_colored(Colors.GREEN, f"▶ Yayinlaniyor [{stream_index + 1}/{len(playlist)}]: {baslik}")
             print_colored(Colors.BLUE, f"   Kaynak: {video_url}")
 
+            # FFmpeg Logosu ve Filtre Ayarları
             if os.path.exists('logo.png'):
                 logo_input = ['-i', 'logo.png']
                 filter_str = (
@@ -163,8 +162,13 @@ def start_stream():
             process = subprocess.Popen(command)
             process.wait()
 
+            # Video başarıyla bittiğinde bir sonraki sıraya geçiş yapıyoruz
+            stream_index = (stream_index + 1) % len(playlist)
+            print_colored(Colors.YELLOW, "⏭ Video bitti. Sira sayaci artirildi, siradaki videoya geciliyor...\n")
             time.sleep(2)
+
         except KeyboardInterrupt:
+            print_colored(Colors.RED, "\n🛑 Yayin kullanıcı tarafından durduruldu.")
             break
         except Exception as e:
             print_colored(Colors.RED, f"❌ Hata: {e}")
