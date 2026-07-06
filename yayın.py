@@ -1,21 +1,7 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import subprocess
-import sys
+import threading
 import time
 import os
-import requests
-
-class Colors:
-    RED = '\033;31m'
-    GREEN = '\033;32m'
-    YELLOW = '\033;33m'
-    BLUE = '\033;34m'
-    NC = '\033[0m'
-
-def print_colored(color, text):
-    print(f"{color}{text}{Colors.NC}")
 
 # ===================== SSH101.com AYARLARI =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
@@ -23,161 +9,158 @@ STREAM_KEY = "fil2"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
 # ===================== YAYIN AYARLARI =====================
-M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
 PLAYLIST_FILE = "playlist.m3u"
-LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
+LOGO_URL = "https://i.hizliresim.com/74c1k5c.png"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
-def is_termux():
-    return 'TERMUX_VERSION' in os.environ or '/data/data/com.termux' in os.environ
+# Playlist dosyasının kaç saniyede bir yeniden okunacağı
+PLAYLIST_REFRESH_INTERVAL = 60
 
-def check_dependencies():
-    try:
-        import requests  # noqa: F401
-    except ImportError:
-        subprocess.run([sys.executable, "-m", "pip", "install", "requests"], check=True)
-    try:
-        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
-    except Exception:
-        if is_termux():
-            subprocess.run(["pkg", "install", "-y", "ffmpeg"], check=True)
+print("=" * 50)
+print("📺 SSH101.com Yayın Başlatılıyor")
+print("=" * 50)
+print(f"🎨 Logo: {LOGO_URL}")
+print(f"🔑 Stream Key: {STREAM_KEY}")
+print(f"📡 RTMP: {rtmp_server}")
+print("=" * 50)
 
-def m3u_dan_listeyi_cek(m3u_url):
-    try:
-        if m3u_url.startswith('http'):
-            cache_buster = f"?t={int(time.time())}"
-            response = requests.get(m3u_url + cache_buster, timeout=15,
-                                     headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
-            response.raise_for_status()
-            m3u_icerik = response.text
-        else:
-            if not os.path.exists(m3u_url):
-                return []
-            with open(m3u_url, 'r', encoding='utf-8') as f:
-                m3u_icerik = f.read()
+# Logo'yu indir
+subprocess.run(["wget", "-O", "logo.png", LOGO_URL])
 
-        liste = []
-        baslik = None
-        for satir in m3u_icerik.split('\n'):
-            satir = satir.strip()
-            if satir.startswith('#EXTINF'):
-                if ',' in satir:
-                    baslik = satir.split(',', 1)[1].strip()
-                else:
+# ===================== PAYLAŞILAN DURUM =====================
+playlist_lock = threading.Lock()
+current_playlist = []  # [{"title": "...", "url": "..."}, ...]
+son_oynatilan_url = None
+
+
+def playlist_oku(dosya_yolu):
+    """
+    M3U dosyasını okur. #EXTINF satırındaki film adını bir sonraki
+    http linkiyle eşleştirip {"title": ..., "url": ...} sözlükleri
+    şeklinde liste döner.
+    """
+    liste = []
+    baslik = None
+    try:
+        with open(dosya_yolu, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("#EXTINF"):
+                    # Örnek satır: #EXTINF:-1,Film Adı Burada
+                    if ',' in line:
+                        baslik = line.split(',', 1)[1].strip()
+                    else:
+                        baslik = None
+                elif line.startswith("http"):
+                    if not baslik:
+                        # EXTINF yoksa dosya adından türet
+                        baslik = os.path.basename(line.split('?')[0]) or "Bilinmeyen Film"
+                    liste.append({"title": baslik, "url": line})
                     baslik = None
-            elif satir.startswith('http'):
-                if not baslik:
-                    baslik = os.path.basename(satir.split('?')[0]) or "Bilinmeyen Film"
-                liste.append({"title": baslik, "url": satir})
-                baslik = None
-        return liste
     except Exception as e:
-        print_colored(Colors.RED, f"❌ M3U çekme hatası: {e}")
-        return []
+        print(f"❌ Playlist okuma hatası: {e}")
+    return liste
 
-def download_logo():
-    try:
-        if LOGO_URL.startswith('http'):
-            response = requests.get(LOGO_URL, timeout=15)
-            with open('logo.png', 'wb') as f:
-                f.write(response.content)
-            return True
-        return os.path.exists(LOGO_URL)
-    except Exception:
-        return False
 
-def start_stream():
-    # Sıra sayacı döngünün dışında başlar, böylece liste güncellense de sırasını kaybetmez
-    stream_index = 0
-
-    print("=" * 50)
-    print("📺 SSH101.com Kesintisiz Canlı Yayın Başlatıldı")
-    print("=" * 50)
-
+def playlist_guncelleyici(dosya_yolu, interval=PLAYLIST_REFRESH_INTERVAL):
+    global current_playlist
     while True:
+        time.sleep(interval)
         try:
-            playlist = m3u_dan_listeyi_cek(M3U_SOURCE)
-            if len(playlist) == 0 and os.path.exists(PLAYLIST_FILE):
-                playlist = m3u_dan_listeyi_cek(PLAYLIST_FILE)
-
-            if len(playlist) == 0:
-                print_colored(Colors.RED, "⚠️ Liste boş. 10 saniye sonra tekrar denenecek...")
-                time.sleep(10)
-                continue
-
-            # Eğer liste güncellenirken küçüldüyse ve sayaç liste dışı kaldıysa başa sar
-            if stream_index >= len(playlist):
-                stream_index = 0
-
-            secilen = playlist[stream_index]
-            sonraki = playlist[(stream_index + 1) % len(playlist)]
-
-            video_url = secilen["url"]
-            baslik = secilen["title"]
-            sonraki_baslik = sonraki["title"]
-
-            # Ekrana yazdırılacak başlık dosyası oluşturuluyor
-            try:
-                with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(f"Simdi: {baslik}\nSirada: {sonraki_baslik}")
-            except Exception:
-                pass
-
-            print_colored(Colors.GREEN, f"▶ Yayinlaniyor [{stream_index + 1}/{len(playlist)}]: {baslik}")
-            print_colored(Colors.BLUE, f"   Kaynak: {video_url}")
-
-            # FFmpeg Logosu ve Filtre Ayarları
-            if os.path.exists('logo.png'):
-                logo_input = ['-i', 'logo.png']
-                filter_str = (
-                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                    'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                    '[1:v]scale=-1:90[logo];'
-                    '[v0][logo]overlay=W-w-10:10[vlogo];'
-                    f'[vlogo]drawtext=fontfile={FONT_PATH}:'
-                    'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=18:line_spacing=6:'
-                    'x=20:y=h-text_h-20[v]'
-                )
-            else:
-                logo_input = []
-                filter_str = (
-                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                    'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                    f'[v0]drawtext=fontfile={FONT_PATH}:'
-                    'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=18:line_spacing=6:'
-                    'x=20:y=h-text_h-20[v]'
-                )
-
-            command = [
-                'ffmpeg', '-re', '-i', video_url
-            ] + logo_input + [
-                '-filter_complex', filter_str,
-                '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
-                '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
-                '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
-            ]
-
-            process = subprocess.Popen(command)
-            process.wait()
-
-            # Video başarıyla bittiğinde bir sonraki sıraya geçiş yapıyoruz
-            stream_index = (stream_index + 1) % len(playlist)
-            print_colored(Colors.YELLOW, "⏭ Video bitti. Sira sayaci artirildi, siradaki videoya geciliyor...\n")
-            time.sleep(2)
-
-        except KeyboardInterrupt:
-            print_colored(Colors.RED, "\n🛑 Yayin kullanıcı tarafından durduruldu.")
-            break
+            yeni_liste = playlist_oku(dosya_yolu)
+            if len(yeni_liste) > 0:
+                with playlist_lock:
+                    if yeni_liste != current_playlist:
+                        current_playlist = yeni_liste
+                        print(f"🔄 Playlist güncellendi! Yeni film sayısı: {len(yeni_liste)}")
         except Exception as e:
-            print_colored(Colors.RED, f"❌ Hata: {e}")
-            time.sleep(5)
+            print(f"❌ Playlist güncelleme hatası: {e}")
 
-def main():
-    check_dependencies()
-    download_logo()
-    start_stream()
 
-if __name__ == "__main__":
-    main()
+def siradaki_videoyu_sec(liste):
+    """Son oynatılan URL'ye göre sıradaki {"title","url"} öğesini seçer."""
+    global son_oynatilan_url
+
+    urls = [item["url"] for item in liste]
+
+    if son_oynatilan_url is None or son_oynatilan_url not in urls:
+        return liste[0]
+
+    idx = urls.index(son_oynatilan_url)
+    return liste[(idx + 1) % len(liste)]
+
+
+# İlk playlist yüklemesi
+current_playlist = playlist_oku(PLAYLIST_FILE)
+
+if len(current_playlist) == 0:
+    raise Exception("playlist.m3u içinde video bulunamadı")
+
+# Güncelleyici thread'i başlat
+guncelleme_thread = threading.Thread(
+    target=playlist_guncelleyici,
+    args=(PLAYLIST_FILE, PLAYLIST_REFRESH_INTERVAL),
+    daemon=True
+)
+guncelleme_thread.start()
+
+# ===================== YAYIN DÖNGÜSÜ =====================
+while True:
+    with playlist_lock:
+        liste = current_playlist.copy()
+
+    if len(liste) == 0:
+        print("⚠️ Playlist boş, 5 saniye sonra tekrar denenecek...")
+        time.sleep(5)
+        continue
+
+    secilen = siradaki_videoyu_sec(liste)
+    video = secilen["url"]
+    baslik = secilen["title"]
+    son_oynatilan_url = video
+
+    # Film adını dosyaya yaz (ffmpeg drawtext bunu okuyacak)
+    try:
+        with open("title.txt", "w", encoding="utf-8") as f:
+            f.write(baslik)
+    except Exception as e:
+        print(f"❌ Başlık dosyası yazma hatası: {e}")
+
+    print(f"▶ Yayınlanıyor: {baslik}")
+    print(f"   Kaynak: {video}")
+
+    command = [
+        'ffmpeg',
+        '-re',
+        '-i', video,
+        '-i', 'logo.png',
+        '-filter_complex',
+        '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
+        'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
+        '[1:v]scale=200:-1[logo];'
+        '[v0][logo]overlay=W-w-9:3[vlogo];'
+        f'[vlogo]drawtext=fontfile={FONT_PATH}:'
+        'textfile=title.txt:reload=1:'
+        'fontcolor=white:fontsize=22:'
+        'box=1:boxcolor=black@0.6:boxborderw=8:'
+        'x=20:y=h-text_h-20[v]',
+        '-map', '[v]',
+        '-map', '0:a?',
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-pix_fmt', 'yuv420p',
+        '-b:v', '4000k',
+        '-maxrate', '4000k',
+        '-bufsize', '8000k',
+        '-g', '50',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-ar', '44100',
+        '-f', 'flv',
+        rtmp_server
+    ]
+
+    process = subprocess.Popen(command)
+    process.wait()
+
+    print("⏭ Video bitti, sıradaki videoya geçiliyor...\n")
