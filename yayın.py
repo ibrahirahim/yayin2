@@ -43,10 +43,17 @@ def m3u_dan_listeyi_cek(m3u_url):
     """
     M3U dosyasını indirir/okur. #EXTINF satırındaki film adını
     bir sonraki http linkiyle eşleştirip {"title","url"} listesi döner.
+
+    ÖNEMLİ: raw.githubusercontent.com birkaç dakikalık CDN önbelleği
+    kullanır. Bunu aşmak için URL'e her seferinde değişen bir
+    "cache-busting" parametresi (?t=...) ekliyoruz, böylece GitHub'ın
+    önbellekten değil her zaman güncel dosyayı vermesi sağlanıyor.
     """
     try:
         if m3u_url.startswith('http'):
-            response = requests.get(m3u_url, timeout=15)
+            cache_buster = f"?t={int(time.time())}"
+            response = requests.get(m3u_url + cache_buster, timeout=15,
+                                     headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
             response.raise_for_status()
             m3u_icerik = response.text
         else:
@@ -70,7 +77,8 @@ def m3u_dan_listeyi_cek(m3u_url):
                 liste.append({"title": baslik, "url": satir})
                 baslik = None
         return liste
-    except Exception:
+    except Exception as e:
+        print_colored(Colors.RED, f"❌ M3U çekme hatası: {e}")
         return []
 
 def download_logo():
@@ -100,19 +108,23 @@ def start_stream():
 
             urls = [item["url"] for item in playlist]
             if son_oynatilan_url is None or son_oynatilan_url not in urls:
-                secilen = playlist[0]
+                secilen_idx = 0
             else:
                 idx = urls.index(son_oynatilan_url)
-                secilen = playlist[(idx + 1) % len(playlist)]
+                secilen_idx = (idx + 1) % len(playlist)
+
+            secilen = playlist[secilen_idx]
+            sonraki = playlist[(secilen_idx + 1) % len(playlist)]
 
             video_url = secilen["url"]
             baslik = secilen["title"]
+            sonraki_baslik = sonraki["title"]
             son_oynatilan_url = video_url
 
-            # Film adını dosyaya yaz, ffmpeg drawtext bunu okuyacak
+            # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
                 with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(baslik)
+                    f.write(f"Şimdi: {baslik}\nSırada: {sonraki_baslik}")
             except Exception:
                 pass
 
@@ -128,7 +140,7 @@ def start_stream():
                     '[v0][logo]overlay=W-w-10:10[vlogo];'
                     f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=:'
+                    'fontcolor=white:fontsize=18:line_spacing=6:'
                     'x=20:y=h-text_h-20[v]'
                 )
             else:
@@ -138,8 +150,8 @@ def start_stream():
                     'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
                     f'[v0]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=18:'
-                    'x=23:y=h-text_h-20[v]'
+                    'fontcolor=white:fontsize=18:line_spacing=6:'
+                    'x=20:y=h-text_h-20[v]'
                 )
 
             command = [
