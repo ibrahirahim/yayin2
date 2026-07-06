@@ -1,4 +1,4 @@
-name: filbox
+name: SSH101.com Yayın
 on:
   push:
     branches: [ main ]
@@ -26,11 +26,12 @@ jobs:
         import subprocess
         import time
         import os
+        import threading
         import urllib.request
 
         # ===================== SSH101.com AYARLARI =====================
         RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-        STREAM_KEY = "fill2"
+        STREAM_KEY = "fil2"
         rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
         # ===================== YAYIN AYARLARI =====================
@@ -91,6 +92,48 @@ jobs:
             return liste
 
 
+        def video_suresini_al(url):
+            """ffprobe ile videonun toplam süresini (saniye) öğrenir. Başarısız olursa None döner."""
+            try:
+                result = subprocess.run(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                     "-of", "default=noprint_wrappers=1:nokey=1", url],
+                    capture_output=True, text=True, timeout=20
+                )
+                sure = float(result.stdout.strip())
+                if sure > 0:
+                    return sure
+            except Exception:
+                pass
+            return None
+
+
+        def sure_formatla(saniye):
+            saniye = max(0, int(saniye))
+            saat = saniye // 3600
+            dakika = (saniye % 3600) // 60
+            san = saniye % 60
+            if saat > 0:
+                return f"{saat:02d}:{dakika:02d}:{san:02d}"
+            return f"{dakika:02d}:{san:02d}"
+
+
+        def sure_guncelleyici(baslik, toplam_sure, baslangic, durdur_event):
+            """Arka planda saniyede bir title.txt dosyasını film adı + kalan süre ile günceller."""
+            while not durdur_event.is_set():
+                try:
+                    if toplam_sure:
+                        kalan = toplam_sure - (time.time() - baslangic)
+                        metin = f"{baslik}\nKalan: {sure_formatla(kalan)}"
+                    else:
+                        metin = baslik
+                    with open("title.txt", "w", encoding="utf-8") as f:
+                        f.write(metin)
+                except Exception:
+                    pass
+                durdur_event.wait(1)
+
+
         video_sayaci = 0
         onceki_liste_imzasi = None
 
@@ -139,8 +182,8 @@ jobs:
                 '[v0][logo]overlay=W-w-10:10[vlogo];'
                 f'[vlogo]drawtext=fontfile={FONT_PATH}:'
                 'textfile=title.txt:reload=1:'
-                'fontcolor=white:fontsize=16:line_spacing=6:'
-                'x=22:y=h-text_h-20[v]',
+                'fontcolor=white:fontsize=18:line_spacing=6:'
+                'x=20:y=h-text_h-20[v]',
                 '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
                 '-pix_fmt', 'yuv420p', '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
                 '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
