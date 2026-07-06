@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 import os
+import threading
 import requests
 
 class Colors:
@@ -18,7 +19,7 @@ def print_colored(color, text):
     print(f"{color}{text}{Colors.NC}")
 
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "fill2"
+STREAM_KEY = "fil2"
 rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
 M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/playlist.m3u"
@@ -92,6 +93,45 @@ def download_logo():
     except Exception:
         return False
 
+def video_suresini_al(url):
+    """ffprobe ile videonun toplam süresini (saniye) öğrenir. Başarısız olursa None döner."""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", url],
+            capture_output=True, text=True, timeout=20
+        )
+        sure = float(result.stdout.strip())
+        if sure > 0:
+            return sure
+    except Exception:
+        pass
+    return None
+
+def sure_formatla(saniye):
+    saniye = max(0, int(saniye))
+    saat = saniye // 3600
+    dakika = (saniye % 3600) // 60
+    san = saniye % 60
+    if saat > 0:
+        return f"{saat:02d}:{dakika:02d}:{san:02d}"
+    return f"{dakika:02d}:{san:02d}"
+
+def sure_guncelleyici(baslik, toplam_sure, baslangic, durdur_event):
+    """Arka planda saniyede bir title.txt dosyasını film adı + kalan süre ile günceller."""
+    while not durdur_event.is_set():
+        try:
+            if toplam_sure:
+                kalan = toplam_sure - (time.time() - baslangic)
+                metin = f"{baslik}\nKalan: {sure_formatla(kalan)}"
+            else:
+                metin = baslik
+            with open("title.txt", "w", encoding="utf-8") as f:
+                f.write(metin)
+        except Exception:
+            pass
+        durdur_event.wait(1)
+
 def start_stream():
     video_sayaci = 0
     onceki_liste_imzasi = None
@@ -125,15 +165,22 @@ def start_stream():
             baslik = secilen["title"]
             video_sayaci += 1
 
-            # Sadece şu an oynayan filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
-            try:
-                with open("title.txt", "w", encoding="utf-8") as f:
-                    f.write(baslik)
-            except Exception:
-                pass
+            # Videonun toplam süresini öğren (mümkünse)
+            toplam_sure = video_suresini_al(video_url)
+
+            # Film adı + kalan süreyi saniyede bir güncelleyecek arka plan thread'i
+            durdur_event = threading.Event()
+            guncelleyici = threading.Thread(
+                target=sure_guncelleyici,
+                args=(baslik, toplam_sure, time.time(), durdur_event),
+                daemon=True
+            )
+            guncelleyici.start()
 
             print_colored(Colors.GREEN, f"▶ Yayınlanıyor: {baslik}")
             print_colored(Colors.BLUE, f"   Kaynak: {video_url}")
+            if toplam_sure:
+                print_colored(Colors.BLUE, f"   Süre: {sure_formatla(toplam_sure)}")
 
             if os.path.exists('logo.png'):
                 logo_input = ['-i', 'logo.png']
@@ -154,8 +201,8 @@ def start_stream():
                     'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
                     f'[v0]drawtext=fontfile={FONT_PATH}:'
                     'textfile=title.txt:reload=1:'
-                    'fontcolor=white:fontsize=16:line_spacing=6:'
-                    'x=22:y=h-text_h-20[v]'
+                    'fontcolor=white:fontsize=18:line_spacing=6:'
+                    'x=20:y=h-text_h-20[v]'
                 )
 
             command = [
@@ -169,6 +216,9 @@ def start_stream():
 
             process = subprocess.Popen(command)
             process.wait()
+
+            durdur_event.set()
+            guncelleyici.join(timeout=2)
 
             time.sleep(2)
         except KeyboardInterrupt:
