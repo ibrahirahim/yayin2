@@ -93,7 +93,7 @@ def download_logo():
         return False
 
 def start_stream():
-    son_oynatilan_url = None
+    video_sayaci = 0
 
     while True:
         try:
@@ -106,20 +106,17 @@ def start_stream():
                 time.sleep(10)
                 continue
 
-            urls = [item["url"] for item in playlist]
-            if son_oynatilan_url is None or son_oynatilan_url not in urls:
-                secilen_idx = 0
-            else:
-                idx = urls.index(son_oynatilan_url)
-                secilen_idx = (idx + 1) % len(playlist)
-
+            # Her zaman güncel listenin (dosyadaki) sırasına göre oynat.
+            # video_sayaci hiç sıfırlanmaz, sürekli artar; bu sayede liste
+            # her yeniden çekildiğinde o anki sıraya göre doğru video seçilir.
+            secilen_idx = video_sayaci % len(playlist)
             secilen = playlist[secilen_idx]
             sonraki = playlist[(secilen_idx + 1) % len(playlist)]
 
             video_url = secilen["url"]
             baslik = secilen["title"]
             sonraki_baslik = sonraki["title"]
-            son_oynatilan_url = video_url
+            video_sayaci += 1
 
             # Şimdi oynayan ve sıradaki filmi dosyaya yaz, ffmpeg drawtext bunu okuyacak
             try:
