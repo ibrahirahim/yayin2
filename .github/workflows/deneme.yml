@@ -1,0 +1,24 @@
+name: deneme
+on:
+  workflow_dispatch:
+
+jobs:
+  yayin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Depoyu klonla
+        uses: actions/checkout@v4
+
+      - name: Python kurulumu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: FFmpeg kurulumu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Yayını başlat
+        run: python yayin.py
