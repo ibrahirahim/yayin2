@@ -37,7 +37,7 @@ jobs:
         rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
         
         # ===================== YAYIN AYARLARI =====================
-        VIDEO_URL = "https://catcast.ismailturret.workers.dev/playercinema-premium4.m3u8"
+        VIDEO_URL = "https://catcast.ismailturret.workers.dev/playercinema-premium2.m3u8"
         LOGO_URL = "https://i.hizliresim.com/rssomxo.png"
         
         print("=" * 50)
