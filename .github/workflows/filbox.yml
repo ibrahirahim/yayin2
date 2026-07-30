@@ -19,7 +19,7 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: 📦 Gereksinimleri yükle
+    - name: 📦 FFmpeg ve Gereksinimlerin Kurulumu
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
@@ -34,12 +34,13 @@ jobs:
         import threading
         import requests
 
+        # ===================== AYARLAR =====================
         RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
         STREAM_KEY = "fil2"
         rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
         M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/filbox.m3u"
-        LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
+        LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1783229622801.png"
         FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         STREAM_USER_AGENT = "VLC/3.0.18 LibVLC/3.0.18"
 
@@ -71,12 +72,18 @@ jobs:
                 return []
 
         def download_logo():
+            """Logoyu güvenli bir şekilde indirir ve PNG olduğunu doğrular."""
             try:
                 response = requests.get(LOGO_URL, timeout=15)
-                with open('logo.png', 'wb') as f:
-                    f.write(response.content)
+                # Yanıt 200 mü ve dönen içerik gerçekten bir image/png mi kontrol et
+                if response.status_code == 200 and 'image' in response.headers.get('Content-Type', ''):
+                    with open('logo.png', 'wb') as f:
+                        f.write(response.content)
+                    print("✅ Logo başarıyla indirildi.")
+                else:
+                    print("⚠️ Logo linki geçerli bir görsel döndürmedi. Yayın logosuz çalışacak.")
             except Exception as e:
-                print(f"⚠️ Logo indirilemedi: {e}")
+                print(f"⚠️ Logo indirilemedi ({e}). Yayın logosuz çalışacak.")
 
         def video_suresini_al(url):
             try:
@@ -120,22 +127,32 @@ jobs:
 
                 toplam_sure = video_suresini_al(secilen["url"])
                 durdur_event = threading.Event()
-                guncelleyici = threading.Thread(target=sure_guncelleyici, args=(secilen["title"], toplam_sure, time.time(), durdur_event), daemon=True)
+                guncelleyici = threading.Thread(
+                    target=sure_guncelleyici, 
+                    args=(secilen["title"], toplam_sure, time.time(), durdur_event), 
+                    daemon=True
+                )
                 guncelleyici.start()
 
                 print(f"▶ Yayınlanıyor: {secilen['title']}")
+                print(f"   Kaynak: {secilen['url']}")
 
-                filter_str = (
-                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                    '[1:v]scale=-1:90[logo];[v0][logo]overlay=W-w-10:10[vlogo];'
-                    f'[vlogo]drawtext=fontfile={FONT_PATH}:textfile=title.txt:reload=1:fontcolor=white:fontsize=16:line_spacing=6:x=23:y=h-text_h-20[v]'
-                ) if os.path.exists('logo.png') else (
-                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                    f'[v0]drawtext=fontfile={FONT_PATH}:textfile=title.txt:reload=1:fontcolor=white:fontsize=18:line_spacing=6:x=20:y=h-text_h-20[v]'
-                )
-                
-                logo_input = ['-i', 'logo.png'] if os.path.exists('logo.png') else []
-                
+                has_logo = os.path.exists('logo.png')
+
+                if has_logo:
+                    filter_str = (
+                        '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
+                        '[1:v]scale=-1:90[logo];[v0][logo]overlay=W-w-10:10[vlogo];'
+                        f'[vlogo]drawtext=fontfile={FONT_PATH}:textfile=title.txt:reload=1:fontcolor=white:fontsize=16:line_spacing=6:x=23:y=h-text_h-20[v]'
+                    )
+                    logo_input = ['-i', 'logo.png']
+                else:
+                    filter_str = (
+                        '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
+                        f'[v0]drawtext=fontfile={FONT_PATH}:textfile=title.txt:reload=1:fontcolor=white:fontsize=18:line_spacing=6:x=20:y=h-text_h-20[v]'
+                    )
+                    logo_input = []
+
                 command = [
                     'ffmpeg', '-user_agent', STREAM_USER_AGENT, '-re', '-i', secilen["url"]
                 ] + logo_input + [
@@ -145,7 +162,9 @@ jobs:
                     '-g', '50', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-f', 'flv', rtmp_server
                 ]
 
-                subprocess.Popen(command).wait()
+                process = subprocess.Popen(command)
+                process.wait()
+
                 durdur_event.set()
                 time.sleep(2)
 
@@ -154,6 +173,6 @@ jobs:
             start_stream()
         EOF
         echo "✅ Yayın scripti başarıyla oluşturuldu."
-        
+
     - name: 🚀 Yayını başlat
       run: python yayin.py
