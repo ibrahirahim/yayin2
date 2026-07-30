@@ -26,6 +26,11 @@ M3U_SOURCE = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/ma
 LOGO_URL = "https://i.hizliresim.com/4ovbzg4.png"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
+# Bazı IPTV kaynakları ffmpeg'in varsayılan user-agent'ını tanımayıp
+# isteği reddediyor (bot tespiti). VLC gibi görünen bir user-agent
+# göndererek bu engeli aşmayı deniyoruz.
+STREAM_USER_AGENT = "VLC/3.0.18 LibVLC/3.0.18"
+
 def is_termux():
     return 'TERMUX_VERSION' in os.environ or '/data/data/com.termux' in os.environ
 
@@ -53,8 +58,11 @@ def m3u_dan_listeyi_cek(m3u_url):
     try:
         if m3u_url.startswith('http'):
             cache_buster = f"?t={int(time.time())}"
-            response = requests.get(m3u_url + cache_buster, timeout=15,
-                                     headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
+            response = requests.get(
+                m3u_url + cache_buster, timeout=15,
+                headers={"Cache-Control": "no-cache", "Pragma": "no-cache",
+                         "User-Agent": STREAM_USER_AGENT}
+            )
             response.raise_for_status()
             m3u_icerik = response.text
         else:
@@ -97,7 +105,9 @@ def video_suresini_al(url):
     """ffprobe ile videonun toplam süresini (saniye) öğrenir. Başarısız olursa None döner."""
     try:
         result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+            ["ffprobe", "-v", "error",
+             "-user_agent", STREAM_USER_AGENT,
+             "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", url],
             capture_output=True, text=True, timeout=20
         )
@@ -206,7 +216,9 @@ def start_stream():
                 )
 
             command = [
-                'ffmpeg', '-re', '-i', video_url
+                'ffmpeg',
+                '-user_agent', STREAM_USER_AGENT,
+                '-re', '-i', video_url
             ] + logo_input + [
                 '-filter_complex', filter_str,
                 '-map', '[v]', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast',
