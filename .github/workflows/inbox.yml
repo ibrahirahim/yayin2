@@ -40,18 +40,17 @@ jobs:
         STREAM_KEY = "inbox1"
         RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-        # Canlı M3U8 Ana Yayın Linki (401 Hatası Veren Chunklist Yerine Ana Kök Link)
-        M3U8_URL = "https://tv91.radyotelekom.com.tr:3466/stream/play.m3u8"
+        # Güncel Ve Doğru M3U8 Bağlantısı (tv191)
+        M3U8_URL = "https://tv191.radyotelekom.com.tr:3466/stream/play.m3u8"
 
         # Logo Bağlantısı (Raw Formatında)
         LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
 
-        # IPTV Engeline Takılmamak İçin Gerçek Tarayıcı User-Agent'ı
+        # Engellere Takılmamak İçin Header Ayarları
         STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         REFERER_URL = "https://radyotelekomtv.com/"
 
         def check_dependencies():
-            """Gerekli kütüphane ve FFmpeg kontrolü yapar."""
             try:
                 import requests  # noqa: F401
             except ImportError:
@@ -63,7 +62,6 @@ jobs:
                 sys.exit(1)
 
         def download_logo():
-            """Logoyu indirir ve kaydeder."""
             try:
                 headers = {'User-Agent': STREAM_USER_AGENT}
                 response = requests.get(LOGO_URL, headers=headers, timeout=15)
@@ -77,7 +75,6 @@ jobs:
                 print(f"⚠️ Logo indirme hatası: {e}. Yayın logosuz devam edecek.")
 
         def start_m3u8_stream():
-            """M3U8 yayınını alıp SSH101 RTMP sunucusuna canlı aktarır."""
             print("=" * 60)
             print("📺 SSH101 Canlı M3U8 Aktarım Yayını Başlatılıyor")
             print(f"📡 Kaynak M3U8 : {M3U8_URL}")
@@ -105,7 +102,6 @@ jobs:
                         )
                         logo_input = []
 
-                    # 401 Unauthorized Hatasını Önlemek İçin Özel Başlıklar (Headers)
                     headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\nReferer: {REFERER_URL}\r\n"
 
                     command = [
