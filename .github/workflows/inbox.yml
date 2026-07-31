@@ -35,7 +35,7 @@ jobs:
         STREAM_KEY = "inbox1"
         RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-        M3U8_URL = "https://radyotelekomtv.com/player/m3u8/333a006f25068d7fde195a4f0c988474/chunklist_w220756748.m3u8"
+        M3U8_URL = "https://tv191.radyotelekom.com.tr:3466/stream/play.m3u8"
         LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
         STREAM_USER_AGENT = "VLC/3.0.18 LibVLC/3.0.18"
 
