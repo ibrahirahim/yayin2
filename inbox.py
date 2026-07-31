@@ -12,8 +12,8 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "inbox1"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Canlı M3U8 Ana Yayın Linki (401 Hatası Veren Chunklist Yerine Ana Kök Link)
-M3U8_URL = "https://tv91.radyotelekom.com.tr:3466/stream/play.m3u8"
+# Güncellenmiş Doğru Canlı M3U8 Yayın Adresi
+M3U8_URL = "https://tv191.radyotelekom.com.tr:3466/stream/play.m3u8"
 
 # Logo Bağlantısı (Raw Formatında)
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
@@ -32,7 +32,7 @@ def check_dependencies():
     try:
         subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
     except Exception:
-        print("❌ HATA: FFmpeg sisteminizde kurulu değil! Lütfen FFmpeg kurup tekrar deneyin.")
+        print("❌ HATA: FFmpeg sisteminizde kurulu değil!")
         sys.exit(1)
 
 def download_logo():
@@ -78,7 +78,7 @@ def start_m3u8_stream():
                 )
                 logo_input = []
 
-            # 401 Unauthorized Hatasını Önlemek İçin Özel Başlıklar (Headers)
+            # 401 Unauthorized Hatasını Önlemek İçin Başlıklar
             headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\nReferer: {REFERER_URL}\r\n"
 
             command = [
