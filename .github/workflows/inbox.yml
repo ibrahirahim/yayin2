@@ -1,4 +1,4 @@
-name: inbox
+name: SSH101.com Canlı Yayın (M3U8 - Küçük Logo)
 on:
   push:
     branches: [ main ]
@@ -40,14 +40,15 @@ jobs:
         STREAM_KEY = "inbox1"
         RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-        # Canlı M3U8 Yayın Linki
-        M3U8_URL = "https://radyotelekomtv.com/player/m3u8/333a006f25068d7fde195a4f0c988474/chunklist_w220756748.m3u8"
+        # Canlı M3U8 Ana Yayın Linki (401 Hatası Veren Chunklist Yerine Ana Kök Link)
+        M3U8_URL = "https://tv91.radyotelekom.com.tr:3466/stream/play.m3u8"
 
         # Logo Bağlantısı (Raw Formatında)
         LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
 
-        # IPTV Engeline Takılmamak İçin User-Agent
-        STREAM_USER_AGENT = "VLC/3.0.18 LibVLC/3.0.18"
+        # IPTV Engeline Takılmamak İçin Gerçek Tarayıcı User-Agent'ı
+        STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        REFERER_URL = "https://radyotelekomtv.com/"
 
         def check_dependencies():
             """Gerekli kütüphane ve FFmpeg kontrolü yapar."""
@@ -58,11 +59,11 @@ jobs:
             try:
                 subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
             except Exception:
-                print("❌ HATA: FFmpeg sisteminizde kurulu değil! Lütfen FFmpeg kurup tekrar deneyin.")
+                print("❌ HATA: FFmpeg sisteminizde kurulu değil!")
                 sys.exit(1)
 
         def download_logo():
-            """Logoyu indirir (Content-Type kısıtlaması kaldırıldı)."""
+            """Logoyu indirir ve kaydeder."""
             try:
                 headers = {'User-Agent': STREAM_USER_AGENT}
                 response = requests.get(LOGO_URL, headers=headers, timeout=15)
@@ -104,9 +105,12 @@ jobs:
                         )
                         logo_input = []
 
+                    # 401 Unauthorized Hatasını Önlemek İçin Özel Başlıklar (Headers)
+                    headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\nReferer: {REFERER_URL}\r\n"
+
                     command = [
                         'ffmpeg',
-                        '-user_agent', STREAM_USER_AGENT,
+                        '-headers', headers_arg,
                         '-re',
                         '-i', M3U8_URL
                     ] + logo_input + [
