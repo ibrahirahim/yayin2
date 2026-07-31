@@ -1,0 +1,106 @@
+name: SSH101.com Canlı Yayın (M3U8 - Küçük Logo)
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  yayin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+    - name: 📥 Depoyu klonla
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Python kurulumu
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: 📦 FFmpeg ve Kurulumlar
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
+        pip install requests
+        
+    - name: 🎬 Yayın scriptini oluştur
+      run: |
+        cat > yayin.py << 'EOF'
+        import subprocess
+        import time
+        import os
+        import requests
+
+        RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
+        STREAM_KEY = "inbox1"
+        RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
+
+        M3U8_URL = "https://radyotelekomtv.com/player/m3u8/333a006f25068d7fde195a4f0c988474/chunklist_w220756748.m3u8"
+        LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
+        STREAM_USER_AGENT = "VLC/3.0.18 LibVLC/3.0.18"
+
+        def download_logo():
+            try:
+                response = requests.get(LOGO_URL, timeout=15)
+                if response.status_code == 200 and 'image' in response.headers.get('Content-Type', ''):
+                    with open('logo.png', 'wb') as f:
+                        f.write(response.content)
+                    print("✅ Logo başarıyla indirildi.")
+                else:
+                    print("⚠️ Logo indirilemedi. Logosuz yayın yapılacak.")
+            except Exception as e:
+                print(f"⚠️ Logo indirme hatası: {e}")
+
+        def start_m3u8_stream():
+            while True:
+                has_logo = os.path.exists('logo.png')
+
+                if has_logo:
+                    filter_str = (
+                        '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
+                        'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
+                        '[1:v]scale=-1:50[logo];'
+                        '[v0][logo]overlay=W-w-10:10[v]'
+                    )
+                    logo_input = ['-i', 'logo.png']
+                else:
+                    filter_str = (
+                        '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
+                        'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v]'
+                    )
+                    logo_input = []
+
+                command = [
+                    'ffmpeg',
+                    '-user_agent', STREAM_USER_AGENT,
+                    '-re',
+                    '-i', M3U8_URL
+                ] + logo_input + [
+                    '-filter_complex', filter_str,
+                    '-map', '[v]',
+                    '-map', '0:a?',
+                    '-c:v', 'libx264',
+                    '-preset', 'veryfast',
+                    '-pix_fmt', 'yuv420p',
+                    '-b:v', '3000k',
+                    '-maxrate', '3000k',
+                    '-bufsize', '6000k',
+                    '-g', '50',
+                    '-c:a', 'aac',
+                    '-b:a', '128k',
+                    '-ar', '44100',
+                    '-f', 'flv',
+                    RTMP_SERVER
+                ]
+
+                process = subprocess.Popen(command)
+                process.wait()
+                time.sleep(5)
+
+        if __name__ == "__main__":
+            download_logo()
+            start_m3u8_stream()
+        EOF
+
+    - name: 🚀 Yayını başlat
+      run: python yayin.py
