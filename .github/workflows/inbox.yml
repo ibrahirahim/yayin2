@@ -40,15 +40,15 @@ jobs:
         STREAM_KEY = "inbox1"
         RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-        # Güncel Ve Doğru M3U8 Bağlantısı (tv191)
-        M3U8_URL = "https://tv191.radyotelekom.com.tr:3466/stream/play.m3u8"
+        # Yeni M3U8 Yayın Linki
+        M3U8_URL = "http://kino-1.catcast.tv/content/37745/index.m3u8"
 
-        # Logo Bağlantısı (Raw Formatında)
-        LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
+        # Yeni Logo Bağlantısı (Ham/Raw Formatına Dönüştürüldü)
+        LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785427265114.png"
 
         # Engellere Takılmamak İçin Header Ayarları
         STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        REFERER_URL = "https://radyotelekomtv.com/"
+        REFERER_URL = "http://kino-1.catcast.tv/"
 
         def check_dependencies():
             try:
