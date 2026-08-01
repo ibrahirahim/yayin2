@@ -12,15 +12,15 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "inbox1"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Güncellenmiş Doğru Canlı M3U8 Yayın Adresi
-M3U8_URL = "https://tv191.radyotelekom.com.tr:3466/stream/play.m3u8"
+# Yeni M3U8 Yayın Linki
+M3U8_URL = "http://kino-1.catcast.tv/content/37745/index.m3u8"
 
-# Logo Bağlantısı (Raw Formatında)
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785481173165.png"
+# Yeni Logo Bağlantısı (Raw Formatında)
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785427265114.png"
 
-# IPTV Engeline Takılmamak İçin Gerçek Tarayıcı User-Agent'ı
+# Engellere Takılmamak İçin Header Ayarları
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-REFERER_URL = "https://radyotelekomtv.com/"
+REFERER_URL = "http://kino-1.catcast.tv/"
 
 def check_dependencies():
     """Gerekli kütüphane ve FFmpeg kontrolü yapar."""
@@ -32,7 +32,7 @@ def check_dependencies():
     try:
         subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
     except Exception:
-        print("❌ HATA: FFmpeg sisteminizde kurulu değil!")
+        print("❌ HATA: FFmpeg sisteminizde kurulu değil! Lütfen FFmpeg kurup tekrar deneyin.")
         sys.exit(1)
 
 def download_logo():
@@ -78,7 +78,7 @@ def start_m3u8_stream():
                 )
                 logo_input = []
 
-            # 401 Unauthorized Hatasını Önlemek İçin Başlıklar
+            # Headers parametresi
             headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\nReferer: {REFERER_URL}\r\n"
 
             command = [
