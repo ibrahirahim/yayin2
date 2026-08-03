@@ -93,8 +93,8 @@ jobs:
                     filter_str = (
                         '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                         'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                        '[1:v]scale=-1:50[logo];'
-                        '[main][logo]overlay=W-w-10:10[v]'
+                        '[1:v]scale=-2:35[logo];'
+                        '[main][logo]overlay=W-w-15:15[v]'
                     )
                     logo_input = ['-i', 'logo.png']
                 else:
