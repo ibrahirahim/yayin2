@@ -40,7 +40,7 @@ jobs:
         RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
         M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/action.m3u"
-        LOGO_URL = "https://github.com/ibrahirahim/yayin2/blob/main/1785792260260.png"
+        LOGO_URL = "https://github.com/ibrahirahim/yayin2/main/1785792260260.png"
 
         STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
