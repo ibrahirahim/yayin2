@@ -1,17 +1,5 @@
 #EXTM3U
 
-#EXTINF:-1,
-http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/129135.mp4
-#EXTINF:-1,
-http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/126794.mp4
-#EXTINF:-1,
-http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/124200.mp4
-#EXTINF:-1,
-http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/120220.mp4
-#EXTINF:-1,YAZ EVİ
-http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/128702.mp4
-#EXTINF:-1, zengo
-http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/88930.mkv
 #EXTINF:-1, Türkler geliyor
 http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/88926.mkv
 #EXTINF:-1, sıfır bir
@@ -30,3 +18,16 @@ http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/119383.mp4
 http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/129327.mp4
 #EXTINF:-1,
 http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/130398.mp4
+#EXTINF:-1,
+http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/129135.mp4
+#EXTINF:-1,
+http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/126794.mp4
+#EXTINF:-1,
+http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/124200.mp4
+#EXTINF:-1,
+http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/120220.mp4
+#EXTINF:-1,YAZ EVİ
+http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/128702.mp4
+#EXTINF:-1, zengo
+http://ege123.xyz:8080/movie/mj6JSBN2yesr1/cn3eqTgJY3xw2/88930.mkv
+
