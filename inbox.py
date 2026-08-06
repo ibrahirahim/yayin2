@@ -12,11 +12,11 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "inbox1"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U Playlist Linki
+# M3U Playlist Linki
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/yerli.m3u"
 
 # Yeni Logo Bağlantısı (Raw Formatında)
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785427265114.png"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/main/1786025536044.png"
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -82,13 +82,14 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Sadece logo overlay filtresi (Ekranda süre yok)
+        # Logo boyutu scale=-2:45 ile ideal ölçüye getirildi.
+        # overlay=W-w-25:25 ile sağ ve üst kenarlardan biraz daha içeri çekildi.
         if has_logo:
             filter_str = (
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                 'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:35[logo];'
-                '[main][logo]overlay=W-w-15:15[v]'
+                '[1:v]scale=-2:45[logo];'
+                '[main][logo]overlay=W-w-25:25[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
