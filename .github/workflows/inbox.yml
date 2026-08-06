@@ -40,7 +40,7 @@ jobs:
         RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
         M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/yerli.m3u"
-        LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1785427265114.png"
+        LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/main/1786025536044.png"
 
         STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -93,8 +93,8 @@ jobs:
                     filter_str = (
                         '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                         'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                        '[1:v]scale=-2:35[logo];'
-                        '[main][logo]overlay=W-w-15:15[v]'
+                        '[1:v]scale=-2:45[logo];'
+                        '[main][logo]overlay=W-w-25:25[v]'
                     )
                     logo_input = ['-i', 'logo.png']
                 else:
