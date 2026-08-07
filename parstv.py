@@ -17,7 +17,6 @@ RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 # Yeni M3U ve Logo Bağlantıları
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/pars.m3u"
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/main/1786122696411.png"
-"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
