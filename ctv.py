@@ -9,14 +9,14 @@ import requests
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "inbox2"
+STREAM_KEY = "ctv"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U Playlist Linki
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/action.m3u"
+# M3U Playlist Linki
+M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/CTv.m3u"
 
 # Yeni Logo Bağlantısı (Raw Formatında)
-LOGO_URL = "https://github.com/ibrahirahim/yayin2/main/1785792260260.png"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/main/1786026420775.png"
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -82,13 +82,13 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Sadece logo overlay filtresi (Ekranda süre yok)
+        # Logo konumu sol üst köşeye (25:25) alındı.
         if has_logo:
             filter_str = (
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                 'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:35[logo];'
-                '[main][logo]overlay=W-w-15:15[v]'
+                '[1:v]scale=-2:45[logo];'
+                '[main][logo]overlay=25:25[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
@@ -105,3 +105,30 @@ def start_m3u_stream():
             '-headers', headers_arg,
             '-re',
             '-i', target_stream_url
+        ] + logo_input + [
+            '-filter_complex', filter_str,
+            '-map', '[v]',
+            '-map', '0:a?',
+            '-c:v', 'libx264',
+            '-preset', 'veryfast',
+            '-pix_fmt', 'yuv420p',
+            '-b:v', '3000k',
+            '-maxrate', '3000k',
+            '-bufsize', '6000k',
+            '-g', '50',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            '-ar', '44100',
+            '-f', 'flv',
+            RTMP_SERVER
+        ]
+
+        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor...")
+        process = subprocess.Popen(command)
+        process.wait()
+
+        print("⚠️ Yayın koptu! 5 saniye sonra tekrar bağlanılıyor...")
+        time.sleep(5)
+
+if __name__ == "__main__":
+    start_m3u_stream()
