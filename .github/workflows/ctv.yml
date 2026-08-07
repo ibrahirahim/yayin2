@@ -1,4 +1,4 @@
-Name: SSH101.com Canlı Yayın (Yerli M3U)
+name: SSH101.com Canlı Yayın (Yerli M3U)
 on:
   push:
     branches: [ main ]
