@@ -15,7 +15,6 @@ STREAM_KEY = "inbox1"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/yerli.m3u"
-# Güncellenen Logo Bağlantısı
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/main/1786025536044.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
@@ -26,6 +25,7 @@ STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 def get_gist_state():
     """Gist'ten en son kalınan video indeksini ve saniyeyi okur."""
     if not GIST_ID:
+        print("⚠️ GIST_ID tanımlı değil!")
         return 0, 0
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
@@ -34,8 +34,14 @@ def get_gist_state():
         if res.status_code == 200:
             files = res.json().get("files", {})
             if "state.json" in files:
-                data = json.loads(files["state.json"]["content"])
-                return data.get("last_index", 0), data.get("last_seconds", 0)
+                content = files["state.json"]["content"]
+                data = json.loads(content)
+                idx = data.get("last_index", 0)
+                sec = data.get("last_seconds", 0)
+                print(f"✅ Gist başarıyla okundu -> İndeks: {idx}, Saniye: {sec}")
+                return idx, sec
+        else:
+            print(f"❌ Gist okuma başarısız! HTTP Durum Kodu: {res.status_code}")
     except Exception as e:
         print(f"⚠️ Gist okuma hatası: {e}")
     return 0, 0
@@ -43,18 +49,26 @@ def get_gist_state():
 def update_gist_state(index, seconds):
     """Gist üzerine güncel konumu kaydeder."""
     if not GIST_ID or not GH_TOKEN:
+        print("⚠️ GIST_ID veya GH_TOKEN eksik, Gist güncellenemiyor!")
         return
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
-        headers = {"Authorization": f"token {GH_TOKEN}"}
+        headers = {
+            "Authorization": f"token {GH_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
         payload = {
             "files": {
                 "state.json": {
-                    "content": json.dumps({"last_index": index, "last_seconds": int(seconds)})
+                    "content": json.dumps({"last_index": int(index), "last_seconds": int(seconds)})
                 }
             }
         }
-        requests.patch(url, headers=headers, json=payload, timeout=5)
+        res = requests.patch(url, headers=headers, json=payload, timeout=5)
+        if res.status_code == 200:
+            print(f"💾 Konum Gist'e Kaydedildi -> İndeks: {index}, Saniye: {int(seconds)}")
+        else:
+            print(f"⚠️ Gist güncelleme hatası HTTP: {res.status_code}")
     except Exception as e:
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
@@ -90,7 +104,6 @@ def start_m3u_stream():
     download_logo()
     
     current_index, last_seconds = get_gist_state()
-    print(f"📌 Kaldığı Konum Yüklendi -> Video İndeksi: {current_index}, Saniye: {last_seconds}")
 
     while True:
         playlist = get_m3u_playlist(M3U_URL)
@@ -106,9 +119,9 @@ def start_m3u_stream():
         
         print("=" * 60)
         print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor")
-        print(f"📡 Kaynak Yayın : {target_stream_url}")
+        print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
-        print(f"🚀 Hedef RTMP   : {RTMP_SERVER}")
+        print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
         print("=" * 60)
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
@@ -177,7 +190,7 @@ def start_m3u_stream():
                     played_seconds = int(hrs) * 3600 + int(mins) * 60 + float(secs)
                     current_stream_seconds = last_seconds + played_seconds
                     
-                    if time.time() - last_save_time > 10:
+                    if time.time() - last_save_time > 15:
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
@@ -189,7 +202,7 @@ def start_m3u_stream():
             last_seconds = current_stream_seconds
             update_gist_state(current_index, last_seconds)
 
-        print("⚠️ Yayın koptu! 5 saniye sonra tekrar bağlanılıyor...")
+        print("⚠️ Yayın durdu! 5 saniye sonra tekrar bağlanılıyor...")
         time.sleep(5)
 
 if __name__ == "__main__":
