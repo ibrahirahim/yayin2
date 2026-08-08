@@ -119,7 +119,7 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -127,23 +127,25 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
+        # 1080p Ölçeklendirme ve Filtre Ayarları
         if has_logo:
             filter_str = (
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
                 '[1:v]scale=-2:90[logo];'
                 '[main][logo]overlay=30:30[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v]'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[v]'
             )
             logo_input = []
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
+        # 1080p Yayın Parametreleri (Bitrate: 5000k, Audio: 192k)
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -157,18 +159,18 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '3000k',
-            '-maxrate', '3000k',
-            '-bufsize', '6000k',
+            '-b:v', '5000k',
+            '-maxrate', '5000k',
+            '-bufsize', '10000k',
             '-g', '50',
             '-c:a', 'aac',
-            '-b:a', '128k',
+            '-b:a', '192k',
             '-ar', '44100',
             '-f', 'flv',
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 1080p canlı yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
