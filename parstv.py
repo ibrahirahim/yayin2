@@ -75,12 +75,13 @@ def update_gist_state(index, seconds):
 
 def get_m3u_playlist(m3u_url):
     """
-    M3U listesindeki tüm yayın linklerini ve film adlarını çeker.
-    [(link, film_adi), ...] şeklinde liste döndürür.
+    M3U listesini canlı olarak çeker.
+    [(link, film_adi), ...] şeklinde güncel listeyi döner.
     """
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
-        response = requests.get(m3u_url, headers=headers, timeout=15)
+        cache_buster_url = f"{m3u_url}?t={int(time.time())}" if "?" not in m3u_url else f"{m3u_url}&t={int(time.time())}"
+        response = requests.get(cache_buster_url, headers=headers, timeout=15)
         if response.status_code == 200:
             lines = response.text.splitlines()
             playlist = []
@@ -138,6 +139,7 @@ def start_m3u_stream():
         print("=" * 60)
         print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor")
         print(f"🎬 Film / Yayın Adı : {film_title}")
+        print(f"📊 Toplam Film Sayısı: {len(playlist)} (Mevcut Sıra: {current_index + 1})")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -145,7 +147,7 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Arka plan ve kenarlık tamamen kaldırıldı, SADECE saf yazı
+        # Sağ alt köşe transparan yazı (Kutu/Arka plan yok)
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
             f"text='{clean_title}':fontsize=16:fontcolor=white:"
@@ -222,15 +224,17 @@ def start_m3u_stream():
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
+        # Film TAMAMEN BİTTİĞİNDE sonraki filme geç
         if process.returncode == 0:
             current_index += 1
             last_seconds = 0
             update_gist_state(current_index, 0)
         else:
+            # Yayın beklenmedik şekilde koparsa kaldığı saniyeden devam et
             last_seconds = current_stream_seconds
             update_gist_state(current_index, last_seconds)
 
-        print("⚠️ Yayın durdu! 5 saniye sonra tekrar bağlanılıyor...")
+        print("⚠️ Yayın tamamlandı / kesildi! 5 saniye sonra yenilenen liste ile devam ediliyor...")
         time.sleep(5)
 
 if __name__ == "__main__":
