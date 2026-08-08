@@ -11,12 +11,12 @@ import requests
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "ctv"
+STREAM_KEY = "planettv"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni M3U ve Logo Bağlantıları
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/CTv.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/main/1786026420775.png"
+M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/action.m3u"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/file_00000000711c8243b56436a5904e0ff5.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -131,7 +131,7 @@ def start_m3u_stream():
             filter_str = (
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                 'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:113[logo];'
+                '[1:v]scale=-2:90[logo];'
                 '[main][logo]overlay=30:30[v]'
             )
             logo_input = ['-i', 'logo.png']
