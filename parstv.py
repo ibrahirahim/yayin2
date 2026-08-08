@@ -150,7 +150,7 @@ def start_m3u_stream():
         # Sağ alt köşe transparan yazı (Kutu/Arka plan yok)
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-            f"text='{clean_title}':fontsize=16:fontcolor=white:"
+            f"text='{clean_title}':fontsize=14:fontcolor=white:"
             f"x=w-tw-30:y=h-th-30"
         )
 
@@ -158,8 +158,8 @@ def start_m3u_stream():
             filter_str = (
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                 'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:110[logo];'
-                '[main][logo]overlay=30:30[v_logo];'
+                '[1:v]scale=-2:113[logo];'
+                '[main][logo]overlay=28:28[v_logo];'
                 f'[v_logo]{text_filter}[v]'
             )
             logo_input = ['-i', 'logo.png']
