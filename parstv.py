@@ -148,7 +148,7 @@ def start_m3u_stream():
         # Arka plan ve kenarlık tamamen kaldırıldı, SADECE saf yazı
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-            f"text='{clean_title}':fontsize=18:fontcolor=white:"
+            f"text='{clean_title}':fontsize=16:fontcolor=white:"
             f"x=w-tw-30:y=h-th-30"
         )
 
