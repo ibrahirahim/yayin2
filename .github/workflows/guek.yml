@@ -1,4 +1,4 @@
-name: guek
+name: güek
 on:
   push:
     branches: [ main ]
