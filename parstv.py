@@ -74,21 +74,32 @@ def update_gist_state(index, seconds):
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
 def get_m3u_playlist(m3u_url):
-    """M3U listesindeki tüm yayın linklerini çekip liste olarak döner."""
+    """
+    M3U listesindeki tüm yayın linklerini ve film adlarını çeker.
+    [(link, film_adi), ...] şeklinde liste döndürür.
+    """
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
         response = requests.get(m3u_url, headers=headers, timeout=15)
         if response.status_code == 200:
             lines = response.text.splitlines()
             playlist = []
+            current_title = "Canli Yayin"
+            
             for line in lines:
                 line = line.strip()
-                if line and not line.startswith('#') and line.startswith('http'):
-                    playlist.append(line)
-            return playlist
+                if line.startswith('#EXTINF:'):
+                    if ',' in line:
+                        current_title = line.split(',', 1)[1].strip()
+                elif line and not line.startswith('#') and line.startswith('http'):
+                    playlist.append((line, current_title))
+                    current_title = "Canli Yayin"
+            
+            if playlist:
+                return playlist
     except Exception as e:
         print(f"⚠️ M3U çekme hatası: {e}")
-    return [m3u_url]
+    return [(m3u_url, "Canli Yayin")]
 
 def download_logo():
     try:
@@ -100,6 +111,11 @@ def download_logo():
             print("✅ Logo başarıyla indirildi.")
     except Exception as e:
         print(f"⚠️ Logo indirme hatası: {e}")
+
+def escape_ffmpeg_text(text):
+    """FFmpeg drawtext için özel karakterleri kaçış karakteriyle düzenler."""
+    text = text.replace(":", "\\:").replace("'", "").replace("%", "\\%")
+    return text
 
 def start_m3u_stream():
     download_logo()
@@ -116,10 +132,12 @@ def start_m3u_stream():
             current_index = 0
             last_seconds = 0
 
-        target_stream_url = playlist[current_index]
+        target_stream_url, film_title = playlist[current_index]
+        clean_title = escape_ffmpeg_text(film_title)
         
         print("=" * 60)
         print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor")
+        print(f"🎬 Film / Yayın Adı : {film_title}")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -127,18 +145,27 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
+        # Arka plan ve kenarlık tamamen kaldırıldı, SADECE saf yazı
+        text_filter = (
+            f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+            f"text='{clean_title}':fontsize=24:fontcolor=white:"
+            f"x=w-tw-30:y=h-th-30"
+        )
+
         if has_logo:
             filter_str = (
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
                 'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
                 '[1:v]scale=-2:110[logo];'
-                '[main][logo]overlay=30:30[v]'
+                '[main][logo]overlay=30:30[v_logo];'
+                f'[v_logo]{text_filter}[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v]'
+                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v_base];'
+                f'[v_base]{text_filter}[v]'
             )
             logo_input = []
 
