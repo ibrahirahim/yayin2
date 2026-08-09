@@ -11,12 +11,12 @@ import requests
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "parstv"
+STREAM_KEY = "guek4k"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U ve Logo Bağlantıları
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/pars.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/main/1786195533573.png"
+# Güncellenmiş M3U ve Logo Bağlantıları
+M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/yerli.m3u"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin3/refs/heads/main/file_000000005538820a905a2689d19f2075.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -74,33 +74,21 @@ def update_gist_state(index, seconds):
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
 def get_m3u_playlist(m3u_url):
-    """
-    M3U listesini canlı olarak çeker.
-    [(link, film_adi), ...] şeklinde güncel listeyi döner.
-    """
+    """M3U listesindeki tüm yayın linklerini çekip liste olarak döner."""
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
-        cache_buster_url = f"{m3u_url}?t={int(time.time())}" if "?" not in m3u_url else f"{m3u_url}&t={int(time.time())}"
-        response = requests.get(cache_buster_url, headers=headers, timeout=15)
+        response = requests.get(m3u_url, headers=headers, timeout=15)
         if response.status_code == 200:
             lines = response.text.splitlines()
             playlist = []
-            current_title = "Canli Yayin"
-            
             for line in lines:
                 line = line.strip()
-                if line.startswith('#EXTINF:'):
-                    if ',' in line:
-                        current_title = line.split(',', 1)[1].strip()
-                elif line and not line.startswith('#') and line.startswith('http'):
-                    playlist.append((line, current_title))
-                    current_title = "Canli Yayin"
-            
-            if playlist:
-                return playlist
+                if line and not line.startswith('#') and line.startswith('http'):
+                    playlist.append(line)
+            return playlist
     except Exception as e:
         print(f"⚠️ M3U çekme hatası: {e}")
-    return [(m3u_url, "Canli Yayin")]
+    return [m3u_url]
 
 def download_logo():
     try:
@@ -112,11 +100,6 @@ def download_logo():
             print("✅ Logo başarıyla indirildi.")
     except Exception as e:
         print(f"⚠️ Logo indirme hatası: {e}")
-
-def escape_ffmpeg_text(text):
-    """FFmpeg drawtext için özel karakterleri kaçış karakteriyle düzenler."""
-    text = text.replace(":", "\\:").replace("'", "").replace("%", "\\%")
-    return text
 
 def start_m3u_stream():
     download_logo()
@@ -133,13 +116,10 @@ def start_m3u_stream():
             current_index = 0
             last_seconds = 0
 
-        target_stream_url, film_title = playlist[current_index]
-        clean_title = escape_ffmpeg_text(film_title)
+        target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor")
-        print(f"🎬 Film / Yayın Adı : {film_title}")
-        print(f"📊 Toplam Film Sayısı: {len(playlist)} (Mevcut Sıra: {current_index + 1})")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (4K / 12.000k Bitrate) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -147,32 +127,25 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Sağ alt köşe transparan yazı (Kutu/Arka plan yok)
-        text_filter = (
-            f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-            f"text='{clean_title}':fontsize=14:fontcolor=white:"
-            f"x=w-tw-30:y=h-th-30"
-        )
-
+        # 4K (3840x2160) Ölçeklendirme ve Logo Filtresi
         if has_logo:
             filter_str = (
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:119[logo];'
-                '[main][logo]overlay=28:28[v_logo];'
-                f'[v_logo]{text_filter}[v]'
+                '[0:v]scale=3840:2160:force_original_aspect_ratio=decrease,'
+                'pad=3840:2160:(ow-iw)/2:(oh-ih)/2:black[main];'
+                '[1:v]scale=-2:240[logo];'
+                '[main][logo]overlay=80:80[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v_base];'
-                f'[v_base]{text_filter}[v]'
+                '[0:v]scale=3840:2160:force_original_aspect_ratio=decrease,'
+                'pad=3840:2160:(ow-iw)/2:(oh-ih)/2:black[v]'
             )
             logo_input = []
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
+        # 4K Ultra HD Parametreleri (12000k Bitrate)
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -184,20 +157,20 @@ def start_m3u_stream():
             '-map', '[v]',
             '-map', '0:a?',
             '-c:v', 'libx264',
-            '-preset', 'veryfast',
+            '-preset', 'ultrafast',  # CPU kullanımını düşük tutmak için
             '-pix_fmt', 'yuv420p',
-            '-b:v', '3000k',
-            '-maxrate', '3000k',
-            '-bufsize', '6000k',
+            '-b:v', '12000k',       # 12.000 kbps Bitrate
+            '-maxrate', '12000k',
+            '-bufsize', '24000k',   # Bitrate'in 2 katı buffer
             '-g', '50',
             '-c:a', 'aac',
-            '-b:a', '128k',
+            '-b:a', '256k',
             '-ar', '44100',
             '-f', 'flv',
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 4K (12 Mbps) canlı yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
@@ -224,17 +197,15 @@ def start_m3u_stream():
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
-        # Film TAMAMEN BİTTİĞİNDE sonraki filme geç
         if process.returncode == 0:
             current_index += 1
             last_seconds = 0
             update_gist_state(current_index, 0)
         else:
-            # Yayın beklenmedik şekilde koparsa kaldığı saniyeden devam et
             last_seconds = current_stream_seconds
             update_gist_state(current_index, last_seconds)
 
-        print("⚠️ Yayın tamamlandı / kesildi! 5 saniye sonra yenilenen liste ile devam ediliyor...")
+        print("⚠️ Yayın durdu! 5 saniye sonra tekrar bağlanılıyor...")
         time.sleep(5)
 
 if __name__ == "__main__":
