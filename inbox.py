@@ -137,7 +137,7 @@ def start_m3u_stream():
         clean_title = escape_ffmpeg_text(film_title)
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor (1080p - 2800k)")
         print(f"🎬 Film / Yayın Adı : {film_title}")
         print(f"📊 Toplam Film Sayısı: {len(playlist)} (Mevcut Sıra: {current_index + 1})")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
@@ -147,26 +147,26 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Sağ alt köşe transparan yazı (Kutu/Arka plan yok)
+        # Sağ alt köşe transparan yazı (1080p ölçüleri)
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-            f"text='{clean_title}':fontsize=14:fontcolor=white:"
-            f"x=w-tw-30:y=h-th-30"
+            f"text='{clean_title}':fontsize=22:fontcolor=white:"
+            f"x=w-tw-45:y=h-th-45"
         )
 
         if has_logo:
             filter_str = (
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:80[logo];'
-                '[main][logo]overlay=28:28[v_logo];'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
+                '[1:v]scale=-2:125[logo];'
+                '[main][logo]overlay=40:40[v_logo];'
                 f'[v_logo]{text_filter}[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v_base];'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[v_base];'
                 f'[v_base]{text_filter}[v]'
             )
             logo_input = []
@@ -186,9 +186,9 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '3000k',
-            '-maxrate', '3000k',
-            '-bufsize', '6000k',
+            '-b:v', '2800k',
+            '-maxrate', '2800k',
+            '-bufsize', '5600k',
             '-g', '50',
             '-c:a', 'aac',
             '-b:a', '128k',
@@ -197,7 +197,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor (1080p @ 2800k)...")
         
         process = subprocess.Popen(
             command,
