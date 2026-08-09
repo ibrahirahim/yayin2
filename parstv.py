@@ -119,7 +119,7 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını (4K / 8.000k Bitrate) Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (4K / 6.000k Bitrate) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -145,7 +145,7 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # 4K Ultra HD Parametreleri (8000k Bitrate)
+        # 4K Ultra HD Parametreleri (6000k Bitrate)
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -159,9 +159,9 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'ultrafast',  # CPU kullanımını düşük tutmak için
             '-pix_fmt', 'yuv420p',
-            '-b:v', '8000k',        # 8.000 kbps Bitrate
-            '-maxrate', '8000k',
-            '-bufsize', '16000k',   # Bitrate'in 2 katı buffer
+            '-b:v', '6000k',        # 6.000 kbps Bitrate
+            '-maxrate', '6000k',
+            '-bufsize', '12000k',   # Bitrate'in 2 katı buffer
             '-g', '50',
             '-c:a', 'aac',
             '-b:a', '256k',
@@ -170,7 +170,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, 4K (8 Mbps) canlı yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 4K (6 Mbps) canlı yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
