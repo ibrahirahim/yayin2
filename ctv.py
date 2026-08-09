@@ -119,7 +119,7 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p) Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p Donmasız) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -127,7 +127,7 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # 1080p Ölçeklendirme ve Filtre Ayarları
+        # 1080p Sadece Logo ve Ölçeklendirme Filtresi
         if has_logo:
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
@@ -145,7 +145,7 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # 1080p Yayın Parametreleri (Bitrate: 5000k, Audio: 192k)
+        # Düşük İnternetlerde Donmayan 1080p Yayın Parametreleri
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -159,18 +159,18 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '5000k',
-            '-maxrate', '5000k',
-            '-bufsize', '10000k',
+            '-b:v', '2800k',        # Donmaları önleyen optimum bitrate
+            '-maxrate', '3000k',    # Sıçramaları kısıtlar
+            '-bufsize', '6000k',    # Kesintisiz veri akışı tamponu
             '-g', '50',
             '-c:a', 'aac',
-            '-b:a', '192k',
+            '-b:a', '128k',
             '-ar', '44100',
             '-f', 'flv',
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, 1080p canlı yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 1080p kesintisiz yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
