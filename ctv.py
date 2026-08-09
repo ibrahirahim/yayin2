@@ -119,7 +119,7 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını (2K / 1440p) Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -127,25 +127,25 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # 2K (2560x1440) Ölçeklendirme ve Filtre Ayarları
+        # 1080p Ölçeklendirme ve Filtre Ayarları
         if has_logo:
             filter_str = (
-                '[0:v]scale=2560:1440:force_original_aspect_ratio=decrease,'
-                'pad=2560:1440:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:160[logo];'
-                '[main][logo]overlay=50:50[v]'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
+                '[1:v]scale=-2:125[logo];'
+                '[main][logo]overlay=40:40[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
-                '[0:v]scale=2560:1440:force_original_aspect_ratio=decrease,'
-                'pad=2560:1440:(ow-iw)/2:(oh-ih)/2:black[v]'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[v]'
             )
             logo_input = []
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # 2K Yayın Parametreleri (Bitrate: 9000k, Audio: 256k)
+        # 1080p Yayın Parametreleri (Bitrate: 5000k, Audio: 192k)
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -157,20 +157,20 @@ def start_m3u_stream():
             '-map', '[v]',
             '-map', '0:a?',
             '-c:v', 'libx264',
-            '-preset', 'ultrafast',  # CPU yükünü dengelemek için ultrafast yapıldı
+            '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '9000k',        # 2K için ideal bitrate (8000k-12000k)
-            '-maxrate', '9000k',
-            '-bufsize', '18000k',   # Bitrate'in 2 katı buffer
+            '-b:v', '5000k',
+            '-maxrate', '5000k',
+            '-bufsize', '10000k',
             '-g', '50',
             '-c:a', 'aac',
-            '-b:a', '256k',
+            '-b:a', '192k',
             '-ar', '44100',
             '-f', 'flv',
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, 2K canlı yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 1080p canlı yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
