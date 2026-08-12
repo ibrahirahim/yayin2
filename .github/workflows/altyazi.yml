@@ -1,8 +1,8 @@
-name: guek altyazi
+name: altyazi
 
 on:
   schedule:
-    # Her 5 saatte bir çalışarak GitHub Actions 6 saatlik limitine takılmadan kendini yeniler
+    # Her 5 saatte bir çalışarak GitHub Actions 6 saatlik limitine takılmadan yayını yeniler
     - cron: '0 */5 * * *'
   workflow_dispatch: # İstediğiniz zaman manuel başlatabilmeniz için
 
@@ -19,10 +19,10 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: FFmpeg ve Gerekli Paketleri Yükle
+    - name: FFmpeg ve Altyazı/Font Kütüphanelerini Yükle
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg
+        sudo apt-get install -y ffmpeg fonts-freefont-ttf fontconfig libass-bin
         python -m pip install --upgrade pip
         pip install requests
 
