@@ -31,4 +31,4 @@ jobs:
         # Gist güncellemeleri için GitHub Token
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
-        python altyaazi.py
+        python altyazi.py
