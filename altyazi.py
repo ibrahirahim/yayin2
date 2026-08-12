@@ -8,13 +8,14 @@ import os
 import re
 import json
 import requests
+from urllib.parse import quote
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "guekaltyazi"
+STREAM_KEY = "gueky"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# GitHub M3U ve Logo Bağlantıları
+# Yeni M3U ve Logo Bağlantılarınız
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/altyazı.m3u"
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/refs/heads/main/1786515032621.png"
 
@@ -23,8 +24,19 @@ GH_TOKEN = os.getenv("GH_TOKEN", "")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+def safe_url_fetch(url):
+    """URL içindeki Türkçe/Özel karakterleri (örn: 'ı' -> '%C4%B1') güvenli formata çevirir."""
+    # Sadece path kısmını encode etmek için
+    if "://" in url:
+        protocol, rest = url.split("://", 1)
+        domain_and_path = rest.split("/", 1)
+        if len(domain_and_path) > 1:
+            domain, path = domain_and_path
+            safe_path = quote(path)
+            return f"{protocol}://{domain}/{safe_path}"
+    return url
+
 def get_gist_state():
-    """Gist'ten en son kalınan video indeksini ve saniyeyi okur."""
     if not GIST_ID:
         return 0, 0
     try:
@@ -41,7 +53,6 @@ def get_gist_state():
     return 0, 0
 
 def update_gist_state(index, seconds):
-    """Gist üzerine güncel konumu kaydeder."""
     if not GIST_ID or not GH_TOKEN:
         return
     try:
@@ -53,10 +64,10 @@ def update_gist_state(index, seconds):
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
 def get_m3u_playlist_direct(m3u_url):
-    """M3U listesinden .vtt/.srt ve video linklerini sırasına göre yakalar."""
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
-        response = requests.get(m3u_url, headers=headers, timeout=15)
+        safe_m3u_url = safe_url_fetch(m3u_url)
+        response = requests.get(safe_m3u_url, headers=headers, timeout=15)
         if response.status_code == 200:
             lines = response.text.splitlines()
             playlist = []
@@ -80,7 +91,6 @@ def get_m3u_playlist_direct(m3u_url):
     return []
 
 def download_and_convert_subtitle(url, output_srt):
-    """Altyazıyı indirir ve VTT ise SRT formatına çevirir."""
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
         res = requests.get(url, headers=headers, timeout=15)
@@ -100,7 +110,6 @@ def download_and_convert_subtitle(url, output_srt):
     return False
 
 def download_file(url, local_filename):
-    """Logo vb. dosyaları indirir."""
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
         res = requests.get(url, headers=headers, timeout=15)
@@ -116,10 +125,12 @@ def start_m3u_stream():
     download_file(LOGO_URL, 'logo.png')
     
     current_index, last_seconds = get_gist_state()
+    error_count = 0
 
     while True:
         playlist = get_m3u_playlist_direct(M3U_URL)
         if not playlist:
+            print("⚠️ M3U listesi boş veya çekilemedi! 10 saniye sonra tekrar deneniyor...")
             time.sleep(10)
             continue
             
@@ -133,33 +144,30 @@ def start_m3u_stream():
         
         has_sub = False
         if target_sub_url:
-            print(f"📥 Altyazı indiriliyor ve işleniyor: {target_sub_url}")
+            print(f"📥 Altyazı indiriliyor: {target_sub_url}")
             has_sub = download_and_convert_subtitle(target_sub_url, 'current_sub.srt')
 
         print("=" * 60)
-        print("📺 SSH101 Canlı Film Yayın Akışı (1080p @ 1000 Bitrate)")
-        print(f"🎬 Film Video Linki  : {target_video_url}")
-        print(f"💬 Film Altyazı Linki: {target_sub_url if has_sub else 'Yok (Altyazısız)'}")
-        print(f"⏱️ Başlangıç Saniyesi: {last_seconds} sn")
+        print(f"📺 SSH101 Canlı Film Yayını - Film #{current_index + 1}")
+        print(f"🎬 Video   : {target_video_url}")
+        print(f"💬 Altyazı : {target_sub_url if has_sub else 'Yok'}")
+        print(f"⏱️ Başlangıç: {last_seconds} sn")
         print("=" * 60)
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Filtre zinciri: 1080p Scale -> Subtitle -> Logo Overlay
-        # 1080p çözünürlük için (1920:1080)
+        # Filtre zinciri (1080p Scale -> Subtitle -> Logo Overlay)
         filters = ['scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]']
         last_v_label = '[base]'
 
         if has_sub and os.path.exists('current_sub.srt'):
-            sub_path = 'current_sub.srt'.replace('\\', '/').replace(':', '\\:')
-            # 1080p ekrana uygun altyazı punto boyutu (FontSize=20)
-            filters.append(f"{last_v_label}subtitles='{sub_path}':force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1'[subbed]")
+            filters.append(f"{last_v_label}subtitles=current_sub.srt:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1'[subbed]")
             last_v_label = '[subbed]'
 
         if has_logo:
             filter_str = ";".join([
                 filters[0],
-                '[1:v]scale=-2:120[logo]'  # 1080p ekrana uygun logo boyutu
+                '[1:v]scale=-2:120[logo]'
             ] + filters[1:] + [
                 f"{last_v_label}[logo]overlay=40:40[v]"
             ])
@@ -183,12 +191,12 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'ultrafast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '1000k',        # 1000 Bitrate
-            '-maxrate', '1000k',    # Maksimum 1000 Bitrate
-            '-bufsize', '2000k',    # Tampon boyutu
+            '-b:v', '1000k',
+            '-maxrate', '1000k',
+            '-bufsize', '2000k',
             '-g', '50',
             '-c:a', 'aac',
-            '-b:a', '128k',         # 1080p / 1000k ayarı için dengeli ses bit hızı
+            '-b:a', '128k',
             '-ar', '44100',
             '-f', 'flv',
             RTMP_SERVER
@@ -198,18 +206,25 @@ def start_m3u_stream():
 
         last_save_time = time.time()
         current_stream_seconds = last_seconds
+        ffmpeg_logs = []
 
         while True:
             line = process.stderr.readline()
             if not line and process.poll() is not None:
                 break
             
+            if line:
+                ffmpeg_logs.append(line)
+                if len(ffmpeg_logs) > 20:
+                    ffmpeg_logs.pop(0)
+
             if "time=" in line:
                 time_match = re.search(r'time=(\d+):(\d+):(\d+\.\d+)', line)
                 if time_match:
                     hrs, mins, secs = time_match.groups()
                     played_seconds = int(hrs) * 3600 + int(mins) * 60 + float(secs)
                     current_stream_seconds = last_seconds + played_seconds
+                    error_count = 0
                     
                     if time.time() - last_save_time > 15:
                         update_gist_state(current_index, current_stream_seconds)
@@ -220,7 +235,18 @@ def start_m3u_stream():
             last_seconds = 0
             update_gist_state(current_index, 0)
         else:
-            last_seconds = current_stream_seconds
+            print("❌ FFmpeg hatası oluştu! Son loglar:")
+            print("".join(ffmpeg_logs[-10:]))
+            error_count += 1
+            
+            if error_count >= 3:
+                print("⚠️ Film 3 kez başlatılamadı, sonraki filme geçiliyor...")
+                current_index += 1
+                last_seconds = 0
+                error_count = 0
+            else:
+                last_seconds = current_stream_seconds
+            
             update_gist_state(current_index, last_seconds)
 
         if os.path.exists('current_sub.srt'):
