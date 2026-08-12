@@ -12,10 +12,10 @@ from urllib.parse import quote
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "gueky"
+STREAM_KEY = "altyazı"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U ve Logo Bağlantılarınız
+# M3U ve Logo Bağlantılarınız
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/altyazı.m3u"
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/refs/heads/main/1786515032621.png"
 
@@ -25,8 +25,7 @@ GH_TOKEN = os.getenv("GH_TOKEN", "")
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 def safe_url_fetch(url):
-    """URL içindeki Türkçe/Özel karakterleri (örn: 'ı' -> '%C4%B1') güvenli formata çevirir."""
-    # Sadece path kısmını encode etmek için
+    """URL içindeki Türkçe/Özel karakterleri güvenli formata çevirir."""
     if "://" in url:
         protocol, rest = url.split("://", 1)
         domain_and_path = rest.split("/", 1)
@@ -90,23 +89,82 @@ def get_m3u_playlist_direct(m3u_url):
         print(f"⚠️ M3U çekme hatası: {e}")
     return []
 
+def vtt_to_srt(vtt_content):
+    """VTT içeriğini tam uyumlu SRT yapısına çevirir."""
+    lines = vtt_content.splitlines()
+    srt_output = []
+    sub_index = 1
+    i = 0
+    
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # WEBVTT başlıklarını veya boş satırları atla
+        if not line or line.startswith('WEBVTT') or line.startswith('NOTE') or line.startswith('STYLE'):
+            i += 1
+            continue
+            
+        # Zaman damgası satırını bul (Örn: 00:01:20.000 --> 00:01:23.000)
+        if '-->' in line:
+            # Noktaları virgül yap (FFmpeg SRT kuralı)
+            time_line = line.replace('.', ',')
+            
+            # Eksik saat formatı varsa düzelt (00:12,000 --> 00:15,000 yerine 00:00:12,000 yap)
+            time_parts = time_line.split('-->')
+            start_t = time_parts[0].strip()
+            end_t = time_parts[1].strip().split()[0] # Ek VTT parametrelerini temizle
+            
+            if start_t.count(':') == 1:
+                start_t = "00:" + start_t
+            if end_t.count(':') == 1:
+                end_t = "00:" + end_t
+                
+            formatted_time = f"{start_t} --> {end_t}"
+            
+            # Metin satırlarını topla
+            i += 1
+            text_lines = []
+            while i < len(lines) and lines[i].strip():
+                # VTT HTML taglarını temizle (<b>, <i>, <v Name> vb.)
+                clean_text = re.sub(r'<[^>]+>', '', lines[i].strip())
+                if clean_text:
+                    text_lines.append(clean_text)
+                i += 1
+                
+            if text_lines:
+                srt_output.append(f"{sub_index}\n{formatted_time}\n" + "\n".join(text_lines) + "\n")
+                sub_index += 1
+        else:
+            i += 1
+            
+    return "\n".join(srt_output)
+
 def download_and_convert_subtitle(url, output_srt):
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
         res = requests.get(url, headers=headers, timeout=15)
-        if res.status_code == 200 and len(res.content) > 0:
+        if res.status_code == 200 and len(res.text) > 10:
             content = res.text
             
-            if "WEBVTT" in content:
-                content = re.sub(r'WEBVTT.*?\n\n', '', content, flags=re.DOTALL)
-                content = re.sub(r'(\d{2}:\d{2}:\d{2})\.(\d{3})', r'\1,\2', content)
-                content = re.sub(r'(\d{2}:\d{2})\.(\d{3})', r'00:\1,\2', content)
+            # VTT ise tam SRT dönüşümü yap
+            if "WEBVTT" in content or url.lower().endswith('.vtt'):
+                srt_text = vtt_to_srt(content)
+            else:
+                srt_text = content
             
-            with open(output_srt, 'w', encoding='utf-8') as f:
-                f.write(content)
-            return True
+            if srt_text.strip():
+                with open(output_srt, 'w', encoding='utf-8') as f:
+                    f.write(srt_text)
+                
+                time.sleep(0.5)
+                if os.path.exists(output_srt) and os.path.getsize(output_srt) > 0:
+                    print(f"✅ Altyazı başarıyla indirildi ve dönüştürüldü ({os.path.getsize(output_srt)} bayt)")
+                    return True
     except Exception as e:
-        print(f"⚠️ Altyazı indirme/dönüştürme hatası: {e}")
+        print(f"⚠️ Altyazı indirme hatası: {e}")
+        
+    if os.path.exists(output_srt):
+        os.remove(output_srt)
     return False
 
 def download_file(url, local_filename):
@@ -150,18 +208,18 @@ def start_m3u_stream():
         print("=" * 60)
         print(f"📺 SSH101 Canlı Film Yayını - Film #{current_index + 1}")
         print(f"🎬 Video   : {target_video_url}")
-        print(f"💬 Altyazı : {target_sub_url if has_sub else 'Yok'}")
+        print(f"💬 Altyazı : {'EVET (Aktif)' if has_sub else 'HAYIR (İndirilemedi)'}")
         print(f"⏱️ Başlangıç: {last_seconds} sn")
         print("=" * 60)
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Filtre zinciri (1080p Scale -> Subtitle -> Logo Overlay)
         filters = ['scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]']
         last_v_label = '[base]'
 
-        if has_sub and os.path.exists('current_sub.srt'):
-            filters.append(f"{last_v_label}subtitles=current_sub.srt:force_style='FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1'[subbed]")
+        # Altyazı sadece geçerli bir şekilde oluştuysa filtreye dahil edilir
+        if has_sub and os.path.exists('current_sub.srt') and os.path.getsize('current_sub.srt') > 0:
+            filters.append(f"{last_v_label}subtitles=filename='current_sub.srt':force_style='FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1'[subbed]")
             last_v_label = '[subbed]'
 
         if has_logo:
