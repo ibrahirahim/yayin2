@@ -2,16 +2,15 @@ name: altyazi
 
 on:
   schedule:
-    # Her 5 saatte bir çalışarak GitHub Actions 6 saatlik limitine takılmadan yayını yeniler
     - cron: '0 */5 * * *'
-  workflow_dispatch: # İstediğiniz zaman manuel başlatabilmeniz için
+  workflow_dispatch:
 
 jobs:
   stream:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Depoyu Klonla (Repository Checkout)
+    - name: Depoyu Klonla
       uses: actions/checkout@v4
 
     - name: Python Kurulumu
@@ -19,16 +18,15 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: FFmpeg ve Altyazı/Font Kütüphanelerini Yükle
+    - name: FFmpeg ve Font Kütüphanelerini Yükle
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg fonts-freefont-ttf fontconfig libass-bin
+        sudo apt-get install -y ffmpeg fonts-freefont-ttf fontconfig
         python -m pip install --upgrade pip
         pip install requests
 
     - name: Canlı Yayını Başlat
       env:
-        # Gist güncellemeleri için GitHub Token
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
         python altyazi.py
