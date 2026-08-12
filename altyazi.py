@@ -219,7 +219,7 @@ def start_m3u_stream():
 
         # Altyazı sadece geçerli bir şekilde oluştuysa filtreye dahil edilir
         if has_sub and os.path.exists('current_sub.srt') and os.path.getsize('current_sub.srt') > 0:
-            filters.append(f"{last_v_label}subtitles=filename='current_sub.srt':force_style='FontSize=22,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1'[subbed]")
+            filters.append(f"{last_v_label}subtitles=filename='current_sub.srt':force_style='FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1'[subbed]")
             last_v_label = '[subbed]'
 
         if has_logo:
