@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "altyazi"
+STREAM_KEY = "altyazı"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/altyazı.m3u"
@@ -87,71 +87,74 @@ def get_m3u_playlist_direct(m3u_url):
         print(f"⚠️ M3U çekme hatası: {e}")
     return []
 
-def vtt_to_srt(vtt_content):
-    lines = vtt_content.splitlines()
-    srt_output = []
+def clean_vtt_to_srt(vtt_text):
+    """VTT altyazısını en temiz ve saf SRT formatına dönüştürür."""
+    lines = vtt_text.splitlines()
+    srt_blocks = []
     sub_index = 1
     i = 0
     
     while i < len(lines):
         line = lines[i].strip()
-        if not line or line.startswith('WEBVTT') or line.startswith('NOTE') or line.startswith('STYLE'):
+        
+        # VTT başlıkları ve gereksiz etiketleri atla
+        if not line or line.startswith('WEBVTT') or line.startswith('NOTE') or line.startswith('STYLE') or line.startswith('REGION'):
             i += 1
             continue
             
         if '-->' in line:
+            # Noktaları Standart SRT virgüle çevir
             time_line = line.replace('.', ',')
-            time_parts = time_line.split('-->')
-            start_t = time_parts[0].strip()
-            end_t = time_parts[1].strip().split()[0]
+            parts = time_line.split('-->')
+            start_t = parts[0].strip()
+            end_t = parts[1].strip().split()[0]
             
+            # Eksik saat hanesini tamamla (00:01:20,000)
             if start_t.count(':') == 1:
                 start_t = "00:" + start_t
             if end_t.count(':') == 1:
                 end_t = "00:" + end_t
                 
-            formatted_time = f"{start_t} --> {end_t}"
+            time_stamp = f"{start_t} --> {end_t}"
             
             i += 1
             text_lines = []
             while i < len(lines) and lines[i].strip():
-                clean_text = re.sub(r'<[^>]+>', '', lines[i].strip())
-                if clean_text:
-                    text_lines.append(clean_text)
+                # HTML taglarını temizle (<b>, <i>, <v Name> vb.)
+                clean_line = re.sub(r'<[^>]+>', '', lines[i].strip())
+                if clean_line:
+                    text_lines.append(clean_line)
                 i += 1
                 
             if text_lines:
-                srt_output.append(f"{sub_index}\n{formatted_time}\n" + "\n".join(text_lines) + "\n")
+                srt_blocks.append(f"{sub_index}\n{time_stamp}\n" + "\n".join(text_lines) + "\n")
                 sub_index += 1
         else:
             i += 1
             
-    return "\n".join(srt_output)
+    return "\n".join(srt_blocks)
 
-def download_and_convert_subtitle(url, output_srt):
+def download_and_prepare_subtitle(url, output_path="current_sub.srt"):
+    """Yayın öncesi altyazıyı indirir, dönüştürür ve yerel ortama hazırlar."""
     try:
         headers = {'User-Agent': STREAM_USER_AGENT}
         res = requests.get(url, headers=headers, timeout=15)
         if res.status_code == 200 and len(res.text) > 10:
-            content = res.text
+            srt_content = clean_vtt_to_srt(res.text)
             
-            if "WEBVTT" in content or url.lower().endswith('.vtt'):
-                srt_text = vtt_to_srt(content)
-            else:
-                srt_text = content
-            
-            if srt_text.strip():
-                with open(output_srt, 'w', encoding='utf-8') as f:
-                    f.write(srt_text)
+            if srt_content.strip():
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(srt_content)
                 
                 time.sleep(0.5)
-                if os.path.exists(output_srt) and os.path.getsize(output_srt) > 0:
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                    print(f"✅ Altyazı indirildi ve hazırdan yayına gömülüyor ({os.path.getsize(output_path)} bayt)")
                     return True
     except Exception as e:
-        print(f"⚠️ Altyazı indirme hatası: {e}")
+        print(f"⚠️ Altyazı hazırlama hatası: {e}")
         
-    if os.path.exists(output_srt):
-        os.remove(output_srt)
+    if os.path.exists(output_path):
+        os.remove(output_path)
     return False
 
 def download_file(url, local_filename):
@@ -188,29 +191,28 @@ def start_m3u_stream():
         
         has_sub = False
         if target_sub_url:
-            print(f"📥 Altyazı indiriliyor: {target_sub_url}")
-            has_sub = download_and_convert_subtitle(target_sub_url, 'current_sub.srt')
+            print(f"📥 Altyazı indirilip hazırlanıyor: {target_sub_url}")
+            has_sub = download_and_prepare_subtitle(target_sub_url, 'current_sub.srt')
 
         print("=" * 60)
         print(f"📺 SSH101 Canlı Film Yayını - Film #{current_index + 1}")
         print(f"🎬 Video   : {target_video_url}")
-        print(f"💬 Altyazı : {'EVET (Aktif)' if has_sub else 'HAYIR'}")
+        print(f"💬 Altyazı : {'YAYINA GÖMÜLÜYOR' if has_sub else 'YOK / İNDİRİLEMEDİ'}")
         print(f"⏱️ Başlangıç: {last_seconds} sn")
         print("=" * 60)
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
+        # Görüntü boyutlandırma
         filters = ['scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[base]']
         last_v_label = '[base]'
 
-        # İŞTE SENKRONU ÇÖZEN DEĞİŞİKLİK BURADA:
-        # subtitles filtresine 'setpts=PTS-STARTPTS' ekledik ve başlangıç saniyesini bağladık.
+        # Altyazıyı videonun karelerine doğrudan gömme (Hardsub)
         if has_sub and os.path.exists('current_sub.srt') and os.path.getsize('current_sub.srt') > 0:
-            sub_filter = (
+            filters.append(
                 f"{last_v_label}subtitles=filename='current_sub.srt'"
-                f":force_style='FontSize=28,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2'[subbed]"
+                f":force_style='FontName=FreeSans,FontSize=13,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2'[subbed]"
             )
-            filters.append(sub_filter)
             last_v_label = '[subbed]'
 
         if has_logo:
@@ -230,7 +232,7 @@ def start_m3u_stream():
         command = [
             'ffmpeg',
             '-headers', headers_arg,
-            '-ss', str(last_seconds), # Videonun başladığı saniye
+            '-ss', str(last_seconds),
             '-re',
             '-i', target_video_url
         ] + logo_input + [
@@ -294,6 +296,7 @@ def start_m3u_stream():
             
             update_gist_state(current_index, last_seconds)
 
+        # Temizlik
         if os.path.exists('current_sub.srt'):
             os.remove('current_sub.srt')
 
