@@ -16,7 +16,7 @@ STREAM_KEY = "sk_us-west-2_JkIp0PYxA6v6_XOyHNnwqyzu80qXsYAwfiVOI0w0v55"
 RTMP_SERVER = f"{RTMP_URL}:443/app/{STREAM_KEY}"
 
 # Güncellenmiş M3U ve Yeni Logo Bağlantıları
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/altyazı.m3u"
+M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin3/refs/heads/main/Cine6.m3u"
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/file_000000009ba481f4ad29d7fd810ac2bb.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
@@ -135,7 +135,7 @@ def start_m3u_stream():
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
                 'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
                 '[1:v]scale=-2:58[logo];'
-                '[main][logo]overlay=20:20[v]'
+                '[main][logo]overlay=30:30[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
