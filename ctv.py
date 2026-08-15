@@ -15,7 +15,7 @@ STREAM_KEY = "planettv"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni M3U ve Logo Bağlantıları
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/action.m3u"
+M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/planet.m3u"
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/file_00000000711c8243b56436a5904e0ff5.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
