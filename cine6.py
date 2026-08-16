@@ -10,14 +10,13 @@ import json
 import requests
 
 # ===================== AYARLAR =====================
-# Kick (Amazon IVS) RTMPS Bağlantı Bilgileri
-RTMP_URL = "rtmps://fa723fc1b171.global-contribute.live-video.net"
-STREAM_KEY = "sk_us-west-2_JkIp0PYxA6v6_XOyHNnwqyzu80qXsYAwfiVOI0w0v55"
-RTMP_SERVER = f"{RTMP_URL}:443/app/{STREAM_KEY}"
+RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
+STREAM_KEY = "animasyon"
+RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Güncellenmiş M3U ve Yeni Logo Bağlantıları
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin3/refs/heads/main/Cine6.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/file_000000009ba481f4ad29d7fd810ac2bb.png"
+# Yeni M3U ve Logo Bağlantıları
+M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/paletç.m3u"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/file_00000000e564820aaa352a3f733dc8a8.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -89,7 +88,7 @@ def get_m3u_playlist(m3u_url):
             return playlist
     except Exception as e:
         print(f"⚠️ M3U çekme hatası: {e}")
-    return []
+    return [m3u_url]
 
 def download_logo():
     try:
@@ -110,7 +109,6 @@ def start_m3u_stream():
     while True:
         playlist = get_m3u_playlist(M3U_URL)
         if not playlist:
-            print("⚠️ Oynatma listesi boş veya çekilemedi! 10 saniye sonra tekrar deneniyor...")
             time.sleep(10)
             continue
             
@@ -121,21 +119,21 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 Kick Canlı RTMPS Aktarım Yayını Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p - 1000k) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
-        print(f"🚀 Hedef Server     : {RTMP_URL}")
+        print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
         print("=" * 60)
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # 1080p Ölçeklendirme ve Logo Filtresi
+        # 1080p Sadece Logo ve Ölçeklendirme Filtresi
         if has_logo:
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
                 'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:58[logo];'
-                '[main][logo]overlay=30:30[v]'
+                '[1:v]scale=-2:125[logo];'
+                '[main][logo]overlay=40:40[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
@@ -147,6 +145,7 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
+        # 1000k Bitrate Parametreleri
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -158,12 +157,12 @@ def start_m3u_stream():
             '-map', '[v]',
             '-map', '0:a?',
             '-c:v', 'libx264',
-            '-preset', 'veryfast',   # Kalite ve performans dengesi
+            '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '2500k',         # Net 1080p görüntüsü için 2.5 Mbps
-            '-maxrate', '2500k',
-            '-bufsize', '5000k',
-            '-g', '60',
+            '-b:v', '1000k',        # 1000k bitrate
+            '-maxrate', '1200k',    # Maksimum sıçrama sınırı
+            '-bufsize', '2400k',    # Tampon boyutu
+            '-g', '50',
             '-c:a', 'aac',
             '-b:a', '128k',
             '-ar', '44100',
@@ -171,7 +170,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, RTMPS canlı yayın Kick'e iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 1000k yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
@@ -194,8 +193,7 @@ def start_m3u_stream():
                     played_seconds = int(hrs) * 3600 + int(mins) * 60 + float(secs)
                     current_stream_seconds = last_seconds + played_seconds
                     
-                    # API sınırlamasına takılmamak için 30 saniyede bir kaydeder
-                    if time.time() - last_save_time > 30:
+                    if time.time() - last_save_time > 15:
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
