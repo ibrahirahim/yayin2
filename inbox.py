@@ -16,7 +16,7 @@ RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni M3U ve Logo Bağlantıları
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/pars.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin/refs/heads/main/1786025536044.png"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/1786968976374.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -150,7 +150,7 @@ def start_m3u_stream():
         # Sağ alt köşe transparan yazı (1080p ölçüleri)
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-            f"text='{clean_title}':fontsize=22:fontcolor=white:"
+            f"text='{clean_title}':fontsize=0:fontcolor=white:"
             f"x=w-tw-45:y=h-th-45"
         )
 
@@ -158,8 +158,8 @@ def start_m3u_stream():
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
                 'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:125[logo];'
-                '[main][logo]overlay=40:40[v_logo];'
+                '[1:v]scale=-2:80[logo];'
+                '[main][logo]overlay=50:50[v_logo];'
                 f'[v_logo]{text_filter}[v]'
             )
             logo_input = ['-i', 'logo.png']
