@@ -11,7 +11,7 @@ import requests
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
-STREAM_KEY = "animasyon"
+STREAM_KEY = "premium"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni M3U ve Logo Bağlantıları
