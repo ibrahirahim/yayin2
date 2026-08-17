@@ -16,7 +16,7 @@ RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # Yeni M3U ve Logo Bağlantıları
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/planet.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/file_00000000711c8243b56436a5904e0ff5.png"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/file_00000000608481f4ace2a2c8b1ce5471.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -132,8 +132,8 @@ def start_m3u_stream():
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
                 'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:125[logo];'
-                '[main][logo]overlay=40:40[v]'
+                '[1:v]scale=-2:80[logo];'
+                '[main][logo]overlay=50:50[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
