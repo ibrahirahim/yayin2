@@ -14,9 +14,9 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "animasyon"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U ve Logo Bağlantıları
+# M3U ve Güncellenen Logo Bağlantıları
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/paletç.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/file_00000000e564820aaa352a3f733dc8a8.png"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/1786963488203.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -119,7 +119,7 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p - 1000k) Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p 60fps - 1000k) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -127,11 +127,11 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # 1080p Sadece Logo ve Ölçeklendirme Filtresi
+        # 1080p 60FPS Logo ve Ölçeklendirme Filtresi
         if has_logo:
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
-                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,fps=60[main];'
                 '[1:v]scale=-2:120[logo];'
                 '[main][logo]overlay=40:40[v]'
             )
@@ -139,13 +139,13 @@ def start_m3u_stream():
         else:
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
-                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[v]'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,fps=60[v]'
             )
             logo_input = []
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # 1000k Bitrate Parametreleri
+        # 1080p 60fps & 1000k Bitrate Parametreleri
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -159,10 +159,11 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '1000k',        # 1000k bitrate
+            '-r', '60',              # Kare hızı 60 FPS
+            '-b:v', '1000k',        # Video Bitrate
             '-maxrate', '1200k',    # Maksimum sıçrama sınırı
             '-bufsize', '2400k',    # Tampon boyutu
-            '-g', '50',
+            '-g', '120',            # 60 fps için 2 saniyelik Keyframe aralığı (GOP)
             '-c:a', 'aac',
             '-b:a', '128k',
             '-ar', '44100',
@@ -170,7 +171,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, 1000k yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 1080p 60fps yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
