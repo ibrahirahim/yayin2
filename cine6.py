@@ -16,7 +16,7 @@ RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # M3U ve Güncellenen Logo Bağlantıları
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/paletç.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/1786963488203.png"
+LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/1787069704883.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
