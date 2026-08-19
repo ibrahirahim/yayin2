@@ -119,7 +119,7 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p 60fps - 1000k) Başlatılıyor")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p 60fps - 2000k) Başlatılıyor")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
@@ -145,7 +145,7 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # 1080p 60fps & 1000k Bitrate Parametreleri
+        # 1080p 60fps & 2000k Bitrate Parametreleri
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -160,9 +160,9 @@ def start_m3u_stream():
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
             '-r', '60',              # Kare hızı 60 FPS
-            '-b:v', '1000k',        # Video Bitrate
-            '-maxrate', '1200k',    # Maksimum sıçrama sınırı
-            '-bufsize', '2400k',    # Tampon boyutu
+            '-b:v', '2000k',        # Video Bitrate (2000 kbps)
+            '-maxrate', '2000k',    # Maksimum sıçrama sınırı
+            '-bufsize', '4000k',    # Tampon boyutu
             '-g', '120',            # 60 fps için 2 saniyelik Keyframe aralığı (GOP)
             '-c:a', 'aac',
             '-b:a', '128k',
@@ -171,7 +171,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, 1080p 60fps yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, 1080p 60fps @ 2000k yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
