@@ -14,11 +14,10 @@ jobs:
     - name: 📥 Depoyu klonla
       uses: actions/checkout@v4
       
-    - name: 🐍 Python Kurulumu ve Pip Önbelleği
+    - name: 🐍 Python Kurulumu
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        cache: 'pip'
         
     - name: 📦 Bağımlılıkları Hızlı Yükle
       run: |
