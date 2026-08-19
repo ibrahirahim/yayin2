@@ -127,24 +127,22 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
+        # Güvenli ve stabil filtre yapısı
         if has_logo:
             filter_str = (
-                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
-                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
-                '[1:v]scale=-2:80[logo];'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(1920-iw)/2:(1080-ih)/2:black[main];'
+                '[1:v]scale=w=-1:h=80[logo];'
                 '[main][logo]overlay=47:42[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
-                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
-                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[v]'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(1920-iw)/2:(1080-ih)/2:black[v]'
             )
             logo_input = []
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # HLS ağ kopmalarına karşı koruma ve standart paketleme ayarları
         input_args = [
             '-headers', headers_arg,
             '-reconnect', '1',
