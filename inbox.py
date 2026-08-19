@@ -137,7 +137,7 @@ def start_m3u_stream():
         clean_title = escape_ffmpeg_text(film_title)
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor (1080p - 2800k)")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor (1080p - 2000k)")
         print(f"🎬 Film / Yayın Adı : {film_title}")
         print(f"📊 Toplam Film Sayısı: {len(playlist)} (Mevcut Sıra: {current_index + 1})")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
@@ -186,9 +186,9 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '2800k',
-            '-maxrate', '2800k',
-            '-bufsize', '5600k',
+            '-b:v', '2000k',        # 2000k bitrate
+            '-maxrate', '2000k',    # Maksimum sıçrama sınırı
+            '-bufsize', '4000k',    # Tampon boyutu
             '-g', '50',
             '-c:a', 'aac',
             '-b:a', '128k',
@@ -197,7 +197,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor (1080p @ 2800k)...")
+        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor (1080p @ 2000k)...")
         
         process = subprocess.Popen(
             command,
