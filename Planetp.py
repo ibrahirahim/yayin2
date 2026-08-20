@@ -14,12 +14,14 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "premium"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U ve Logo Bağlantıları
+# M3U ve Logo Bağlantıları
 M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/Planetp.m3u"
 LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/1787225007657.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
-GH_TOKEN = os.getenv("GH_TOKEN", "")
+
+# 24. SATIR: Yeni oluşturduğun GitHub Token'ını aşağıdaki tırnakların içine yapıştır.
+GH_TOKEN = os.getenv("GH_TOKEN", "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")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -49,8 +51,8 @@ def get_gist_state():
 
 def update_gist_state(index, seconds):
     """Gist üzerine güncel konumu kaydeder."""
-    if not GIST_ID or not GH_TOKEN:
-        print("⚠️ GIST_ID veya GH_TOKEN eksik, Gist güncellenemiyor!")
+    if not GIST_ID or not GH_TOKEN or GH_TOKEN == "BURAYA_YENI_TOKENINIZI_YAZIN":
+        print("⚠️ GIST_ID veya GH_TOKEN eksik/geçersiz, Gist güncellenemiyor!")
         return
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
@@ -127,7 +129,6 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # 1080p Sadece Logo ve Ölçeklendirme Filtresi
         if has_logo:
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
@@ -145,7 +146,6 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # 1000k Bitrate Parametreleri
         command = [
             'ffmpeg',
             '-headers', headers_arg,
@@ -159,9 +159,9 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '1000k',        # 1000k bitrate
-            '-maxrate', '1200k',    # Maksimum sıçrama sınırı
-            '-bufsize', '2400k',    # Tampon boyutu
+            '-b:v', '1000k',
+            '-maxrate', '1200k',
+            '-bufsize', '2400k',
             '-g', '50',
             '-c:a', 'aac',
             '-b:a', '128k',
@@ -197,15 +197,12 @@ def start_m3u_stream():
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
-        if process.returncode == 0:
-            current_index += 1
-            last_seconds = 0
-            update_gist_state(current_index, 0)
-        else:
-            last_seconds = current_stream_seconds
-            update_gist_state(current_index, last_seconds)
+        # Süre dolup kapandığında kaldığı yeri koru
+        last_seconds = current_stream_seconds
+        update_gist_state(current_index, last_seconds)
 
-        print("⚠️ Yayın durdu! 5 saniye sonra tekrar bağlanılıyor...")
+        print(f"⚠️ Yayın durdu! Kaldığı yer -> İndeks: {current_index}, Saniye: {int(last_seconds)}")
+        print("5 saniye sonra tekrar bağlanılıyor...")
         time.sleep(5)
 
 if __name__ == "__main__":
