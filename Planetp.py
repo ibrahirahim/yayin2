@@ -127,37 +127,30 @@ def start_m3u_stream():
 
         has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
 
-        # Güvenli ve stabil filtre yapısı
+        # 1080p Sadece Logo ve Ölçeklendirme Filtresi
         if has_logo:
             filter_str = (
-                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(1920-iw)/2:(1080-ih)/2:black[main];'
-                '[1:v]scale=w=-1:h=80[logo];'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[main];'
+                '[1:v]scale=-2:80[logo];'
                 '[main][logo]overlay=47:42[v]'
             )
             logo_input = ['-i', 'logo.png']
         else:
             filter_str = (
-                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(1920-iw)/2:(1080-ih)/2:black[v]'
+                '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
+                'pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[v]'
             )
             logo_input = []
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        input_args = [
-            '-headers', headers_arg,
-            '-reconnect', '1',
-            '-reconnect_at_eof', '1',
-            '-reconnect_streamed', '1',
-            '-reconnect_delay_max', '5'
-        ]
-
-        if int(last_seconds) > 0:
-            input_args.extend(['-ss', str(last_seconds)])
-
+        # 1000k Bitrate Parametreleri
         command = [
             'ffmpeg',
-            '-re'
-        ] + input_args + [
+            '-headers', headers_arg,
+            '-ss', str(last_seconds),
+            '-re',
             '-i', target_stream_url
         ] + logo_input + [
             '-filter_complex', filter_str,
@@ -166,9 +159,9 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '1000k',
-            '-maxrate', '1200k',
-            '-bufsize', '2400k',
+            '-b:v', '1000k',        # 1000k bitrate
+            '-maxrate', '1200k',    # Maksimum sıçrama sınırı
+            '-bufsize', '2400k',    # Tampon boyutu
             '-g', '50',
             '-c:a', 'aac',
             '-b:a', '128k',
@@ -203,8 +196,6 @@ def start_m3u_stream():
                     if time.time() - last_save_time > 15:
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
-            elif "Error" in line or "Server returned" in line:
-                print(f"⚠️ FFmpeg Log: {line.strip()}")
 
         if process.returncode == 0:
             current_index += 1
