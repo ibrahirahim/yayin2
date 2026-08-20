@@ -14,19 +14,18 @@ jobs:
     - name: 📥 Depoyu klonla
       uses: actions/checkout@v4
       
-    - name: 🐍 Python Kurulumu
+    - name: 🐍 Python kurulumu
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
         
-    - name: 📦 FFmpeg ve Bağımlılıkları Hızlı Yükle
+    - name: 📦 FFmpeg ve Kurulumlar
       run: |
-        sudo apt-get install -y --no-install-recommends ffmpeg
-        python -m pip install --upgrade pip
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg ca-certificates openssl
         pip install requests
         
-    - name: 🚀 Yayını Başlat
+    - name: 🚀 Yayını başlat
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        PYTHONUNBUFFERED: "1"
       run: python Planetp.py
