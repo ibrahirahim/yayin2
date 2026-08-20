@@ -20,7 +20,7 @@ LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/17
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 
-# 24. SATIR: Yeni oluşturduğun GitHub Token'ını aşağıdaki tırnakların içine yapıştır.
+# YENİ TOKENİNİ AŞAĞIDAKİ ALANA YAZ (Buraya mesaj olarak atma!)
 GH_TOKEN = os.getenv("GH_TOKEN", "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")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -51,8 +51,8 @@ def get_gist_state():
 
 def update_gist_state(index, seconds):
     """Gist üzerine güncel konumu kaydeder."""
-    if not GIST_ID or not GH_TOKEN or GH_TOKEN == "BURAYA_YENI_TOKENINIZI_YAZIN":
-        print("⚠️ GIST_ID veya GH_TOKEN eksik/geçersiz, Gist güncellenemiyor!")
+    if not GIST_ID or not GH_TOKEN:
+        print("⚠️ GIST_ID veya GH_TOKEN eksik!")
         return
     try:
         url = f"https://api.github.com/gists/{GIST_ID}"
@@ -71,7 +71,7 @@ def update_gist_state(index, seconds):
         if res.status_code == 200:
             print(f"💾 Konum Gist'e Kaydedildi -> İndeks: {index}, Saniye: {int(seconds)}")
         else:
-            print(f"⚠️ Gist güncelleme hatası HTTP: {res.status_code}")
+            print(f"❌ Gist KAYIT HATASI! HTTP Kodu: {res.status_code} (Token geçersiz veya silinmiş)")
     except Exception as e:
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
@@ -193,11 +193,12 @@ def start_m3u_stream():
                     played_seconds = int(hrs) * 3600 + int(mins) * 60 + float(secs)
                     current_stream_seconds = last_seconds + played_seconds
                     
+                    # Her 15 saniyede bir son konumu Gist'e kaydet
                     if time.time() - last_save_time > 15:
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
-        # Süre dolup kapandığında kaldığı yeri koru
+        # Yayın kapandığında veya kesildiğinde saniyeyi koru
         last_seconds = current_stream_seconds
         update_gist_state(current_index, last_seconds)
 
