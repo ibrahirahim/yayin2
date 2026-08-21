@@ -16,7 +16,7 @@ RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
 # M3U ve Logo artık yerel dosya yolundan okunuyor
 M3U_PATH = "Planetç.m3u"
-LOGO_PATH = "1787069704883.png.png"
+LOGO_PATH = "1787069704883.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
