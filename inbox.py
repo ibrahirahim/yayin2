@@ -18,7 +18,7 @@ RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 M3U_FILE = "pars.m3u"
 LOGO_FILE = "1786011249240.png"
 
-GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
+GIST_ID = "fd5786f3d0fa5c353d1941e0d67bdac3"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
