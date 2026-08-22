@@ -21,9 +21,9 @@ LOGO_PATH = "1787069704883.png"
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
 
-STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (Chrome/120.0.0.0 Safari/537.36)"
+STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-# Global durum değişkenleri (Signal handler için)
+# Global durum değişkenleri
 current_index = 0
 current_stream_seconds = 0
 process = None
@@ -41,12 +41,11 @@ def signal_handler(sig, frame):
     print("👋 Program güvenli şekilde kapatıldı.")
     sys.exit(0)
 
-# Sinyalleri yakala
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 def get_gist_state():
-    """Gist'ten en son kalınan video indeksini ve saniyeyi okur."""
+    """Gist'ten en son kalınan film indeksini ve saniyeyi okur."""
     if not GIST_ID:
         print("⚠️ GIST_ID tanımlı değil!")
         return 0, 0
@@ -61,7 +60,7 @@ def get_gist_state():
                 data = json.loads(content)
                 idx = data.get("last_index", 0)
                 sec = data.get("last_seconds", 0)
-                print(f"✅ Gist başarıyla okundu -> İndeks: {idx}, Saniye: {sec}")
+                print(f"✅ Gist başarıyla okundu -> Film İndeksi: {idx}, Saniye: {sec}")
                 return idx, sec
         else:
             print(f"❌ Gist okuma başarısız! HTTP Durum Kodu: {res.status_code}")
@@ -70,7 +69,7 @@ def get_gist_state():
     return 0, 0
 
 def update_gist_state(index, seconds):
-    """Gist üzerine güncel konumu kaydeder."""
+    """Gist üzerine güncel film indeksini ve saniyesini kaydeder."""
     if not GIST_ID or not GH_TOKEN:
         print("⚠️ GIST_ID veya GH_TOKEN eksik, Gist güncellenemiyor!")
         return
@@ -89,14 +88,14 @@ def update_gist_state(index, seconds):
         }
         res = requests.patch(url, headers=headers, json=payload, timeout=5)
         if res.status_code == 200:
-            print(f"💾 Konum Gist'e Kaydedildi -> İndeks: {index}, Saniye: {int(seconds)}")
+            print(f"💾 Konum Gist'e Kaydedildi -> Film İndeksi: {index}, Saniye: {int(seconds)}")
         else:
             print(f"⚠️ Gist güncelleme hatası HTTP: {res.status_code}")
     except Exception as e:
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
 def get_m3u_playlist(m3u_path):
-    """Yerel M3U dosyasındaki tüm yayın/dosya linklerini çekip liste olarak döner."""
+    """Yerel M3U dosyasındaki tüm linkleri çeker."""
     try:
         if not os.path.exists(m3u_path):
             print(f"❌ M3U dosyası bulunamadı: {m3u_path}")
@@ -114,7 +113,7 @@ def get_m3u_playlist(m3u_path):
     return []
 
 def check_logo():
-    """Yerel logo dosyasının varlığını kontrol eder."""
+    """Logo kontrolü yapar."""
     if os.path.exists(LOGO_PATH) and os.path.getsize(LOGO_PATH) > 0:
         print(f"✅ Logo dosyası bulundu: {LOGO_PATH}")
         return True
@@ -142,8 +141,8 @@ def start_m3u_stream():
         target_stream_url = playlist[current_index]
 
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p 60fps - 2000k) Başlatılıyor")
-        print(f"📡 Kaynak Dosya/Yol : {target_stream_url}")
+        print("📺 SSH101 Canlı M3U Aktarım Yayını (1080p 60fps - 2000k)")
+        print(f"📡 Film Linki (M3U8) : {target_stream_url}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
         print("=" * 60)
@@ -165,14 +164,21 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # -ss parametresi hem giriş öncesine (hızlı arama) hem sonrasına opsiyonel verilebilir
-        # Ağ akışlarında en kararlı arama için -ss '-i' parametresinden hemen önce kullanılır
-        seek_args = ['-ss', str(last_seconds)] if last_seconds > 0 else []
+        # M3U8 Film dosyalarında doğru saniyeye atlamayı sağlayan ek parametreler
+        hls_options = [
+            '-live_start_index', '0',         # Canlı akış değil başından itibaren indeksle
+            '-reconnect', '1',                # Bağlantı koparsa yeniden bağlan
+            '-reconnect_at_eof', '1',
+            '-reconnect_streamed', '1',
+            '-reconnect_delay_max', '5'
+        ]
+
+        seek_arg = ['-ss', str(last_seconds)] if last_seconds > 0 else []
 
         command = [
             'ffmpeg',
             '-headers', headers_arg
-        ] + seek_args + [
+        ] + hls_options + seek_arg + [
             '-re',
             '-i', target_stream_url
         ] + logo_input + [
@@ -194,7 +200,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, 1080p 60fps @ 2000k yayın iletiliyor...")
+        print("▶ FFmpeg başlatıldı, film akışı aktarılıyor...")
 
         process = subprocess.Popen(
             command,
@@ -215,21 +221,23 @@ def start_m3u_stream():
                     if time_match:
                         hrs, mins, secs = time_match.groups()
                         played_seconds = int(hrs) * 3600 + int(mins) * 60 + float(secs)
-                        # FFmpeg -ss kullandığında time= 0'dan başlar, bu yüzden last_seconds eklenir
+                        # -ss kullanıldığı için geçen süreyi başlangıç saniyesine ekliyoruz
                         current_stream_seconds = last_seconds + played_seconds
 
-                        if time.time() - last_save_time > 10:  # Süre 10 saniyeye düşürüldü
+                        if time.time() - last_save_time > 10:
                             update_gist_state(current_index, current_stream_seconds)
                             last_save_time = time.time()
         except KeyboardInterrupt:
             signal_handler(None, None)
 
+        # Film bittiğinde sonraki filme geç
         if process.returncode == 0:
             current_index += 1
             last_seconds = 0
             current_stream_seconds = 0
             update_gist_state(current_index, 0)
         else:
+            # Hata oluştuysa veya durdurulduysa kalınan saniyeyi kaydet
             last_seconds = current_stream_seconds
             update_gist_state(current_index, last_seconds)
 
