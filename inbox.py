@@ -8,6 +8,7 @@ import os
 import re
 import json
 import requests
+import signal
 
 # ===================== AYARLAR =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
@@ -24,6 +25,10 @@ GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
+
+# Global değişkenler (Kapanışta son durumu kaydetmek için)
+GLOBAL_CURRENT_INDEX = 0
+GLOBAL_CURRENT_SECONDS = 0
 
 def get_gist_state():
     """Gist'ten en son kalınan film indeksini ve saniyesini okur."""
@@ -70,11 +75,22 @@ def update_gist_state(index, seconds):
         res = requests.patch(url, headers=headers, json=payload, timeout=5)
         if res.status_code == 200:
             print(f"💾 Gist Kaydedildi -> Film Sırası: {index}, Saniye: {int(seconds)}")
+        else:
+            print(f"⚠️ Gist güncelleme başarısız HTTP: {res.status_code}")
     except Exception as e:
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
+def handle_shutdown(signum, frame):
+    """Workflow manuel durdurulduğunda son durumu Gist'e yazar."""
+    print(f"\n🛑 Kapanış sinyali alındı ({signum}). Son durum kaydediliyor...")
+    update_gist_state(GLOBAL_CURRENT_INDEX, GLOBAL_CURRENT_SECONDS)
+    sys.exit(0)
+
+# Sinyal dinleyicileri ekle
+signal.signal(signal.SIGINT, handle_shutdown)
+signal.signal(signal.SIGTERM, handle_shutdown)
+
 def get_m3u_playlist(m3u_file_path):
-    """M3U dosyasını okuyarak film ve link listesini çıkarır."""
     try:
         if os.path.exists(m3u_file_path):
             with open(m3u_file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -101,7 +117,7 @@ def escape_ffmpeg_text(text):
     return text.replace(":", "\\:").replace("'", "").replace("%", "\\%")
 
 def parse_ffmpeg_time(line):
-    """FFmpeg logundaki süreyi tam saniyeye çevirir."""
+    """FFmpeg logundaki süreyi saniyeye çevirir."""
     time_match = re.search(r'time=(\d+):(\d+):(\d+\.\d+|\d+)', line)
     if time_match:
         hrs, mins, secs = time_match.groups()
@@ -109,8 +125,12 @@ def parse_ffmpeg_time(line):
     return None
 
 def start_m3u_stream():
+    global GLOBAL_CURRENT_INDEX, GLOBAL_CURRENT_SECONDS
     has_logo = check_logo()
     current_index, last_seconds = get_gist_state()
+
+    GLOBAL_CURRENT_INDEX = current_index
+    GLOBAL_CURRENT_SECONDS = last_seconds
 
     while True:
         playlist = get_m3u_playlist(M3U_FILE)
@@ -119,10 +139,12 @@ def start_m3u_stream():
             time.sleep(10)
             continue
             
-        # Liste sonuna gelindiyse başa dön
         if current_index >= len(playlist):
             current_index = 0
             last_seconds = 0
+
+        GLOBAL_CURRENT_INDEX = current_index
+        GLOBAL_CURRENT_SECONDS = last_seconds
 
         target_stream_url, film_title = playlist[current_index]
         clean_title = escape_ffmpeg_text(film_title)
@@ -158,9 +180,10 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # FFmpeg Komutu: Kaldığı saniyeden başlatmak için -ss -i'den önce olmalı!
+        # FFmpeg Komutu
         command = ['ffmpeg', '-headers', headers_arg]
         
+        # Kaldığı saniyeden başlat
         if last_seconds > 0:
             command.extend(['-ss', str(last_seconds)])
 
@@ -196,8 +219,11 @@ def start_m3u_stream():
             bufsize=1
         )
 
+        start_offset = last_seconds
         last_save_time = time.time()
-        current_stream_seconds = last_seconds
+
+        # Yayın başlar başlamaz mevcut durumu bir kez kaydet
+        update_gist_state(current_index, start_offset)
 
         while True:
             line = process.stderr.readline()
@@ -207,26 +233,29 @@ def start_m3u_stream():
             if "time=" in line:
                 played_seconds = parse_ffmpeg_time(line)
                 if played_seconds is not None:
-                    # Başlangıç saniyesi + oynatılan saniye
-                    current_stream_seconds = last_seconds + played_seconds
+                    # Gerçek toplam saniye = Başlangıç Ofseti + FFmpeg'in Oynattığı Süre
+                    total_seconds = start_offset + played_seconds
+                    GLOBAL_CURRENT_SECONDS = total_seconds
                     
-                    # Her 15 saniyede bir Gist'e son konumu kaydet
-                    if time.time() - last_save_time > 15:
-                        update_gist_state(current_index, current_stream_seconds)
+                    # Her 10 saniyede bir Gist'i güncelle
+                    if time.time() - last_save_time >= 10:
+                        update_gist_state(current_index, total_seconds)
                         last_save_time = time.time()
 
-        # Film bittiğinde veya kesildiğinde
+        # Film tam bittiğinde
         if process.returncode == 0:
-            print("✅ Film normal şekilde tamamlandı. Bir sonraki filme geçiliyor...")
+            print("✅ Film normal şekilde tamamlandı. Sonraki filme geçiliyor...")
             current_index += 1
             last_seconds = 0
+            GLOBAL_CURRENT_INDEX = current_index
+            GLOBAL_CURRENT_SECONDS = 0
             update_gist_state(current_index, 0)
         else:
-            print(f"⚠️ Yayın kesildi! Kaldığı saniye kaydediliyor: {current_stream_seconds}")
-            last_seconds = current_stream_seconds
+            print(f"⚠️ FFmpeg durdu! Son kaydedilen saniye: {GLOBAL_CURRENT_SECONDS}")
+            last_seconds = GLOBAL_CURRENT_SECONDS
             update_gist_state(current_index, last_seconds)
 
-        time.sleep(5)
+        time.sleep(3)
 
 if __name__ == "__main__":
     start_m3u_stream()
