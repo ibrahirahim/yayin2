@@ -14,9 +14,9 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "inbox1"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
-# Yeni M3U ve Logo Bağlantıları
-M3U_URL = "https://raw.githubusercontent.com/ibrahirahim/yayin2/refs/heads/main/pars.m3u"
-LOGO_URL = "https://raw.githubusercontent.com/ibrahirahim/png/refs/heads/main/1787069925822.png"
+# Yerel M3U ve Logo Dosya Yolları
+M3U_FILE = "pars.m3u"
+LOGO_FILE = "1786011249240.png"
 
 GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
@@ -73,17 +73,16 @@ def update_gist_state(index, seconds):
     except Exception as e:
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
-def get_m3u_playlist(m3u_url):
+def get_m3u_playlist(m3u_file_path):
     """
-    M3U listesini canlı olarak çeker.
+    Yerel M3U dosyasını okur.
     [(link, film_adi), ...] şeklinde güncel listeyi döner.
     """
     try:
-        headers = {'User-Agent': STREAM_USER_AGENT}
-        cache_buster_url = f"{m3u_url}?t={int(time.time())}" if "?" not in m3u_url else f"{m3u_url}&t={int(time.time())}"
-        response = requests.get(cache_buster_url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            lines = response.text.splitlines()
+        if os.path.exists(m3u_file_path):
+            with open(m3u_file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+            
             playlist = []
             current_title = "Canli Yayin"
             
@@ -98,20 +97,20 @@ def get_m3u_playlist(m3u_url):
             
             if playlist:
                 return playlist
+        else:
+            print(f"⚠️ M3U dosyası bulunamadı: {m3u_file_path}")
     except Exception as e:
-        print(f"⚠️ M3U çekme hatası: {e}")
-    return [(m3u_url, "Canli Yayin")]
+        print(f"⚠️ M3U dosyası okuma hatası: {e}")
+    return []
 
-def download_logo():
-    try:
-        headers = {'User-Agent': STREAM_USER_AGENT}
-        response = requests.get(LOGO_URL, headers=headers, timeout=15)
-        if response.status_code == 200 and len(response.content) > 0:
-            with open('logo.png', 'wb') as f:
-                f.write(response.content)
-            print("✅ Logo başarıyla indirildi.")
-    except Exception as e:
-        print(f"⚠️ Logo indirme hatası: {e}")
+def check_logo():
+    """Yerel logo dosyasının varlığını kontrol eder."""
+    if os.path.exists(LOGO_FILE) and os.path.getsize(LOGO_FILE) > 0:
+        print(f"✅ Logo dosyası doğrulandı: {LOGO_FILE}")
+        return True
+    else:
+        print(f"⚠️ Logo dosyası bulunamadı veya boş: {LOGO_FILE}")
+        return False
 
 def escape_ffmpeg_text(text):
     """FFmpeg drawtext için özel karakterleri kaçış karakteriyle düzenler."""
@@ -119,13 +118,14 @@ def escape_ffmpeg_text(text):
     return text
 
 def start_m3u_stream():
-    download_logo()
+    has_logo = check_logo()
     
     current_index, last_seconds = get_gist_state()
 
     while True:
-        playlist = get_m3u_playlist(M3U_URL)
+        playlist = get_m3u_playlist(M3U_FILE)
         if not playlist:
+            print("⚠️ Oynatma listesi boş veya okunamadı! 10 saniye sonra tekrar denenecek...")
             time.sleep(10)
             continue
             
@@ -145,8 +145,6 @@ def start_m3u_stream():
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
         print("=" * 60)
 
-        has_logo = os.path.exists('logo.png') and os.path.getsize('logo.png') > 0
-
         # Sağ alt köşe transparan yazı (1080p ölçüleri)
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
@@ -162,7 +160,7 @@ def start_m3u_stream():
                 '[main][logo]overlay=50:50[v_logo];'
                 f'[v_logo]{text_filter}[v]'
             )
-            logo_input = ['-i', 'logo.png']
+            logo_input = ['-i', LOGO_FILE]
         else:
             filter_str = (
                 '[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,'
