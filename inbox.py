@@ -14,17 +14,21 @@ RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 STREAM_KEY = "inbox1"
 RTMP_SERVER = f"{RTMP_URL}/{STREAM_KEY}"
 
+# Kanal Kimliği (Farklı scriptler için bu ismi değiştirebilirsiniz)
+CHANNEL_NAME = "kanal1"
+STATE_FILE_NAME = f"state_{CHANNEL_NAME}.json"
+
 # Yerel M3U ve Logo Dosya Yolları
 M3U_FILE = "pars.m3u"
-LOGO_FILE = "1786011249240.png"
+LOGO_FILE = "1787069925822.png"
 
-GIST_ID = "fd5786f3d0fa5c353d1941e0d67bdac3"
+GIST_ID = "34df90330e4b0daeed9a5b516c1c368d"
 GH_TOKEN = os.getenv("GH_TOKEN", "")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 def get_gist_state():
-    """Gist'ten en son kalınan video indeksini ve saniyeyi okur."""
+    """Gist'ten ilgili kanala ait en son kalınan video indeksini ve saniyeyi okur."""
     if not GIST_ID:
         print("⚠️ GIST_ID tanımlı değil!")
         return 0, 0
@@ -34,13 +38,15 @@ def get_gist_state():
         res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
             files = res.json().get("files", {})
-            if "state.json" in files:
-                content = files["state.json"]["content"]
+            if STATE_FILE_NAME in files:
+                content = files[STATE_FILE_NAME]["content"]
                 data = json.loads(content)
                 idx = data.get("last_index", 0)
                 sec = data.get("last_seconds", 0)
-                print(f"✅ Gist başarıyla okundu -> İndeks: {idx}, Saniye: {sec}")
+                print(f"✅ Gist başarıyla okundu [{STATE_FILE_NAME}] -> İndeks: {idx}, Saniye: {sec}")
                 return idx, sec
+            else:
+                print(f"ℹ️ Gist içinde '{STATE_FILE_NAME}' henüz yok. Baştan (0,0) başlanıyor...")
         else:
             print(f"❌ Gist okuma başarısız! HTTP Durum Kodu: {res.status_code}")
     except Exception as e:
@@ -48,7 +54,7 @@ def get_gist_state():
     return 0, 0
 
 def update_gist_state(index, seconds):
-    """Gist üzerine güncel konumu kaydeder."""
+    """Gist üzerinde ilgili kanala ait dosyaya güncel konumu kaydeder."""
     if not GIST_ID or not GH_TOKEN:
         print("⚠️ GIST_ID veya GH_TOKEN eksik, Gist güncellenemiyor!")
         return
@@ -60,24 +66,21 @@ def update_gist_state(index, seconds):
         }
         payload = {
             "files": {
-                "state.json": {
+                STATE_FILE_NAME: {
                     "content": json.dumps({"last_index": int(index), "last_seconds": int(seconds)})
                 }
             }
         }
         res = requests.patch(url, headers=headers, json=payload, timeout=5)
         if res.status_code == 200:
-            print(f"💾 Konum Gist'e Kaydedildi -> İndeks: {index}, Saniye: {int(seconds)}")
+            print(f"💾 Konum Gist'e Kaydedildi [{STATE_FILE_NAME}] -> İndeks: {index}, Saniye: {int(seconds)}")
         else:
             print(f"⚠️ Gist güncelleme hatası HTTP: {res.status_code}")
     except Exception as e:
         print(f"⚠️ Gist güncelleme hatası: {e}")
 
 def get_m3u_playlist(m3u_file_path):
-    """
-    Yerel M3U dosyasını okur.
-    [(link, film_adi), ...] şeklinde güncel listeyi döner.
-    """
+    """Yerel M3U dosyasını okur."""
     try:
         if os.path.exists(m3u_file_path):
             with open(m3u_file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -113,13 +116,24 @@ def check_logo():
         return False
 
 def escape_ffmpeg_text(text):
-    """FFmpeg drawtext için özel karakterleri kaçış karakteriyle düzenler."""
     text = text.replace(":", "\\:").replace("'", "").replace("%", "\\%")
     return text
 
+def parse_ffmpeg_time(line):
+    """FFmpeg loglarındaki zamanı her türlü formatta saniyeye çevirir."""
+    time_match = re.search(r'time=(\d+):(\d+):(\d+\.\d+|\d+)', line)
+    if time_match:
+        hrs, mins, secs = time_match.groups()
+        return int(hrs) * 3600 + int(mins) * 60 + float(secs)
+    
+    sec_match = re.search(r'time=(\d+\.\d+|\d+)', line)
+    if sec_match:
+        return float(sec_match.group(1))
+        
+    return None
+
 def start_m3u_stream():
     has_logo = check_logo()
-    
     current_index, last_seconds = get_gist_state()
 
     while True:
@@ -137,7 +151,7 @@ def start_m3u_stream():
         clean_title = escape_ffmpeg_text(film_title)
         
         print("=" * 60)
-        print("📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor (1080p - 2000k)")
+        print(f"📺 SSH101 Canlı M3U Aktarım Yayını Başlatılıyor - Kanal: {CHANNEL_NAME} (1080p - 2000k)")
         print(f"🎬 Film / Yayın Adı : {film_title}")
         print(f"📊 Toplam Film Sayısı: {len(playlist)} (Mevcut Sıra: {current_index + 1})")
         print(f"📡 Kaynak Yayın     : {target_stream_url}")
@@ -145,7 +159,6 @@ def start_m3u_stream():
         print(f"🚀 Hedef RTMP       : {RTMP_SERVER}")
         print("=" * 60)
 
-        # Sağ alt köşe transparan yazı (1080p ölçüleri)
         text_filter = (
             f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
             f"text='{clean_title}':fontsize=0:fontcolor=white:"
@@ -184,9 +197,9 @@ def start_m3u_stream():
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
-            '-b:v', '2000k',        # 2000k bitrate
-            '-maxrate', '2000k',    # Maksimum sıçrama sınırı
-            '-bufsize', '4000k',    # Tampon boyutu
+            '-b:v', '2000k',
+            '-maxrate', '2000k',
+            '-bufsize', '4000k',
             '-g', '50',
             '-c:a', 'aac',
             '-b:a', '128k',
@@ -195,7 +208,7 @@ def start_m3u_stream():
             RTMP_SERVER
         ]
 
-        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor (1080p @ 2000k)...")
+        print("▶ FFmpeg başlatıldı, canlı yayın iletiliyor...")
         
         process = subprocess.Popen(
             command,
@@ -212,23 +225,19 @@ def start_m3u_stream():
                 break
             
             if "time=" in line:
-                time_match = re.search(r'time=(\d+):(\d+):(\d+\.\d+)', line)
-                if time_match:
-                    hrs, mins, secs = time_match.groups()
-                    played_seconds = int(hrs) * 3600 + int(mins) * 60 + float(secs)
+                played_seconds = parse_ffmpeg_time(line)
+                if played_seconds is not None:
                     current_stream_seconds = last_seconds + played_seconds
                     
                     if time.time() - last_save_time > 15:
                         update_gist_state(current_index, current_stream_seconds)
                         last_save_time = time.time()
 
-        # Film TAMAMEN BİTTİĞİNDE sonraki filme geç
         if process.returncode == 0:
             current_index += 1
             last_seconds = 0
             update_gist_state(current_index, 0)
         else:
-            # Yayın beklenmedik şekilde koparsa kaldığı saniyeden devam et
             last_seconds = current_stream_seconds
             update_gist_state(current_index, last_seconds)
 
