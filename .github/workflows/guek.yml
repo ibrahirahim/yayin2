@@ -1,4 +1,5 @@
 name: güek
+
 on:
   push:
     branches: [ main ]
