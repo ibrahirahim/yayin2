@@ -5,7 +5,6 @@ import subprocess
 import sys
 import time
 import os
-import re
 import json
 import requests
 import signal
@@ -26,12 +25,10 @@ GH_TOKEN = os.getenv("GH_TOKEN", "")
 
 STREAM_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
 
-# Global değişkenler (Kapanışta son durumu kaydetmek için)
 GLOBAL_CURRENT_INDEX = 0
 GLOBAL_CURRENT_SECONDS = 0
 
 def get_gist_state():
-    """Gist'ten en son kalınan film indeksini ve saniyesini okur."""
     if not GIST_ID:
         return 0, 0
     try:
@@ -45,18 +42,13 @@ def get_gist_state():
                 data = json.loads(content)
                 idx = int(data.get("last_index", 0))
                 sec = int(data.get("last_seconds", 0))
-                print(f"✅ Gist Okundu -> Film Sırası: {idx}, Kaldığı Saniye: {sec}")
+                print(f"✅ GIST OKUNDU -> Film Index: {idx}, Saniye: {sec}")
                 return idx, sec
-            else:
-                print(f"ℹ️ Gist içinde '{STATE_FILE_NAME}' dosyası henüz yok, baştan başlanıyor.")
-        else:
-            print(f"❌ Gist okunamadı! HTTP Kodu: {res.status_code}")
     except Exception as e:
         print(f"⚠️ Gist okuma hatası: {e}")
     return 0, 0
 
 def update_gist_state(index, seconds):
-    """Gist üzerine güncel konumu yazar."""
     if not GIST_ID or not GH_TOKEN:
         return
     try:
@@ -74,19 +66,15 @@ def update_gist_state(index, seconds):
         }
         res = requests.patch(url, headers=headers, json=payload, timeout=5)
         if res.status_code == 200:
-            print(f"💾 Gist Kaydedildi -> Film Sırası: {index}, Saniye: {int(seconds)}")
-        else:
-            print(f"⚠️ Gist güncelleme başarısız HTTP: {res.status_code}")
+            print(f"💾 GIST YAZILDI -> Index: {index}, Saniye: {int(seconds)}")
     except Exception as e:
-        print(f"⚠️ Gist güncelleme hatası: {e}")
+        print(f"⚠️ Gist yazma hatası: {e}")
 
 def handle_shutdown(signum, frame):
-    """Workflow manuel durdurulduğunda son durumu Gist'e yazar."""
-    print(f"\n🛑 Kapanış sinyali alındı ({signum}). Son durum kaydediliyor...")
+    print(f"\n🛑 Kapanış sinyali alındı. Son durum yazılıyor: Saniye {GLOBAL_CURRENT_SECONDS}")
     update_gist_state(GLOBAL_CURRENT_INDEX, GLOBAL_CURRENT_SECONDS)
     sys.exit(0)
 
-# Sinyal dinleyicileri ekle
 signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
@@ -116,26 +104,17 @@ def check_logo():
 def escape_ffmpeg_text(text):
     return text.replace(":", "\\:").replace("'", "").replace("%", "\\%")
 
-def parse_ffmpeg_time(line):
-    """FFmpeg logundaki süreyi saniyeye çevirir."""
-    time_match = re.search(r'time=(\d+):(\d+):(\d+\.\d+|\d+)', line)
-    if time_match:
-        hrs, mins, secs = time_match.groups()
-        return int(hrs) * 3600 + int(mins) * 60 + int(float(secs))
-    return None
-
 def start_m3u_stream():
     global GLOBAL_CURRENT_INDEX, GLOBAL_CURRENT_SECONDS
     has_logo = check_logo()
+    
     current_index, last_seconds = get_gist_state()
-
     GLOBAL_CURRENT_INDEX = current_index
     GLOBAL_CURRENT_SECONDS = last_seconds
 
     while True:
         playlist = get_m3u_playlist(M3U_FILE)
         if not playlist:
-            print("⚠️ Oynatma listesi boş! 10sn sonra tekrar denenecek...")
             time.sleep(10)
             continue
             
@@ -151,7 +130,6 @@ def start_m3u_stream():
         
         print("=" * 60)
         print(f"🎬 Oynatılan Film : {film_title}")
-        print(f"📊 Sıra/Toplam   : {current_index + 1} / {len(playlist)}")
         print(f"⏱️ Başlangıç Saniyesi: {last_seconds}")
         print("=" * 60)
 
@@ -180,20 +158,12 @@ def start_m3u_stream():
 
         headers_arg = f"User-Agent: {STREAM_USER_AGENT}\r\n"
 
-        # FFmpeg Komutu
         command = ['ffmpeg', '-headers', headers_arg]
-        
-        # Kaldığı saniyeden başlat
         if last_seconds > 0:
             command.extend(['-ss', str(last_seconds)])
 
-        command.extend([
-            '-re',
-            '-i', target_stream_url
-        ])
-        
+        command.extend(['-re', '-i', target_stream_url])
         command.extend(logo_input)
-        
         command.extend([
             '-filter_complex', filter_str,
             '-map', '[v]',
@@ -214,44 +184,29 @@ def start_m3u_stream():
 
         process = subprocess.Popen(
             command,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            bufsize=1
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
 
+        start_time = time.time()
         start_offset = last_seconds
         last_save_time = time.time()
 
-        # Yayın başlar başlamaz mevcut durumu bir kez kaydet
-        update_gist_state(current_index, start_offset)
+        # Süreç yaşadığı sürece Python kendi zamanını hesaplar
+        while process.poll() is None:
+            time.sleep(1)
+            elapsed = int(time.time() - start_time)
+            GLOBAL_CURRENT_SECONDS = start_offset + elapsed
 
-        while True:
-            line = process.stderr.readline()
-            if not line and process.poll() is not None:
-                break
-            
-            if "time=" in line:
-                played_seconds = parse_ffmpeg_time(line)
-                if played_seconds is not None:
-                    # Gerçek toplam saniye = Başlangıç Ofseti + FFmpeg'in Oynattığı Süre
-                    total_seconds = start_offset + played_seconds
-                    GLOBAL_CURRENT_SECONDS = total_seconds
-                    
-                    # Her 10 saniyede bir Gist'i güncelle
-                    if time.time() - last_save_time >= 10:
-                        update_gist_state(current_index, total_seconds)
-                        last_save_time = time.time()
+            if time.time() - last_save_time >= 10:
+                update_gist_state(current_index, GLOBAL_CURRENT_SECONDS)
+                last_save_time = time.time()
 
-        # Film tam bittiğinde
         if process.returncode == 0:
-            print("✅ Film normal şekilde tamamlandı. Sonraki filme geçiliyor...")
             current_index += 1
             last_seconds = 0
-            GLOBAL_CURRENT_INDEX = current_index
-            GLOBAL_CURRENT_SECONDS = 0
             update_gist_state(current_index, 0)
         else:
-            print(f"⚠️ FFmpeg durdu! Son kaydedilen saniye: {GLOBAL_CURRENT_SECONDS}")
             last_seconds = GLOBAL_CURRENT_SECONDS
             update_gist_state(current_index, last_seconds)
 
